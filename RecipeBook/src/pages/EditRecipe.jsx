@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { storage, db } from "../firebase/config";
+import { useParams, useNavigate } from "react-router-dom";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
 import {
   Container,
   Paper,
@@ -22,8 +21,12 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import TagInput from "../components/TagInput";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { storage } from "../firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useAuth } from "../contexts/AuthContext";
 
-// Predefined options for cuisine types and common ingredients
+// Import the same constants from RecipeForm
 const CUISINE_TYPES = [
   "African",
   "American",
@@ -137,19 +140,22 @@ const EFFORT_LEVELS = [
   "Special Occasion (All Day Event)",
 ];
 
-export default function RecipeForm() {
+export default function EditRecipe() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [cookbook, setCookbook] = useState("");
   const [author, setAuthor] = useState("");
   const [cuisineType, setCuisineType] = useState("");
-  const [ingredients, setIngredients] = useState("");
+  const [ingredients, setIngredients] = useState([]);
   const [newIngredient, setNewIngredient] = useState("");
   const [instructions, setInstructions] = useState("");
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [tags, setTags] = useState([]);
   const [existingTags, setExistingTags] = useState([]);
   const [existingCookbooks, setExistingCookbooks] = useState([]);
@@ -167,60 +173,80 @@ export default function RecipeForm() {
   const [searchableIngredients, setSearchableIngredients] = useState([]);
   const [cookingMethod, setCookingMethod] = useState("");
 
-  // Helper function to normalize strings
-  const normalizeString = (str) => {
-    return str.trim().toLowerCase();
-  };
-
-  // Helper function to check for similar entries
-  const findSimilarEntry = (value, existingValues) => {
-    const normalizedValue = normalizeString(value);
-    return existingValues.find(
-      (existing) => normalizeString(existing) === normalizedValue
-    );
-  };
-
   useEffect(() => {
-    // Fetch existing data from recipes
-    const fetchExistingData = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "recipes"));
-        const tagsSet = new Set();
-        const cookbooksSet = new Set();
-        const ingredientsSet = new Set();
-        const collectionsSet = new Set();
-
-        querySnapshot.docs.forEach((doc) => {
-          const recipe = doc.data();
-          if (recipe.tags && Array.isArray(recipe.tags)) {
-            recipe.tags.forEach((tag) => tagsSet.add(tag));
-          }
-          if (recipe.cookbook) {
-            cookbooksSet.add(recipe.cookbook);
-          }
-          if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-            recipe.ingredients.forEach((ingredient) =>
-              ingredientsSet.add(ingredient)
-            );
-          }
-          if (recipe.collections && Array.isArray(recipe.collections)) {
-            recipe.collections.forEach((collection) =>
-              collectionsSet.add(collection)
-            );
-          }
-        });
-
-        setExistingTags(Array.from(tagsSet).sort());
-        setExistingCookbooks(Array.from(cookbooksSet).sort());
-        setExistingIngredients(Array.from(ingredientsSet).sort());
-        setExistingCollections(Array.from(collectionsSet).sort());
-      } catch (error) {
-        console.error("Error fetching existing data:", error);
-      }
-    };
-
+    fetchRecipe();
     fetchExistingData();
-  }, []);
+  }, [id]);
+
+  const fetchRecipe = async () => {
+    try {
+      const docRef = doc(db, "recipes", id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const recipeData = docSnap.data();
+        setTitle(recipeData.title || "");
+        setCookbook(recipeData.cookbook || "");
+        setAuthor(recipeData.author || "");
+        setCuisineType(recipeData.cuisineType || "");
+        setIngredients(recipeData.ingredients || []);
+        setInstructions(recipeData.instructions || "");
+        setImagePreview(recipeData.imageUrl || "");
+        setTags(recipeData.tags || []);
+        setCollections(recipeData.collections || []);
+        setDietaryTags(recipeData.dietaryTags || []);
+        setEffort(recipeData.effort || "");
+        setCookingTime(recipeData.cookingTime || "");
+        setServings(recipeData.servings || "");
+        setAllergens(recipeData.allergens || []);
+        setSearchableIngredients(recipeData.searchableIngredients || []);
+        setCookingMethod(recipeData.cookingMethod || "");
+      } else {
+        setError("Recipe not found");
+      }
+    } catch (error) {
+      setError("Failed to fetch recipe. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchExistingData = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "recipes"));
+      const tagsSet = new Set();
+      const cookbooksSet = new Set();
+      const ingredientsSet = new Set();
+      const collectionsSet = new Set();
+
+      querySnapshot.docs.forEach((doc) => {
+        const recipe = doc.data();
+        if (recipe.tags && Array.isArray(recipe.tags)) {
+          recipe.tags.forEach((tag) => tagsSet.add(tag));
+        }
+        if (recipe.cookbook) {
+          cookbooksSet.add(recipe.cookbook);
+        }
+        if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+          recipe.ingredients.forEach((ingredient) =>
+            ingredientsSet.add(ingredient)
+          );
+        }
+        if (recipe.collections && Array.isArray(recipe.collections)) {
+          recipe.collections.forEach((collection) =>
+            collectionsSet.add(collection)
+          );
+        }
+      });
+
+      setExistingTags(Array.from(tagsSet).sort());
+      setExistingCookbooks(Array.from(cookbooksSet).sort());
+      setExistingIngredients(Array.from(ingredientsSet).sort());
+      setExistingCollections(Array.from(collectionsSet).sort());
+    } catch (error) {
+      console.error("Error fetching existing data:", error);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -235,7 +261,7 @@ export default function RecipeForm() {
       const normalizedIngredient = newIngredient.trim();
       const similarIngredient = findSimilarEntry(
         normalizedIngredient,
-        searchableIngredients
+        ingredients
       );
 
       if (similarIngredient) {
@@ -245,19 +271,14 @@ export default function RecipeForm() {
         return;
       }
 
-      setSearchableIngredients([
-        ...searchableIngredients,
-        normalizedIngredient,
-      ]);
+      setIngredients([...ingredients, normalizedIngredient]);
       setNewIngredient("");
       setDuplicateAlert("");
     }
   };
 
   const handleRemoveIngredient = (ingredient) => {
-    setSearchableIngredients(
-      searchableIngredients.filter((i) => i !== ingredient)
-    );
+    setIngredients(ingredients.filter((i) => i !== ingredient));
   };
 
   const handleAddCollection = () => {
@@ -286,9 +307,11 @@ export default function RecipeForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setDuplicateAlert("");
+    setSaving(true);
 
     try {
-      // Check for duplicate recipe names
+      // Check for duplicate recipe names (excluding the current recipe)
       const recipesRef = collection(db, "recipes");
       const q = query(
         recipesRef,
@@ -297,11 +320,13 @@ export default function RecipeForm() {
       );
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
+      const duplicateRecipe = querySnapshot.docs.find((doc) => doc.id !== id);
+      if (duplicateRecipe) {
         setError(
           "A recipe with this name already exists. Please choose a different name."
         );
         setLoading(false);
+        setSaving(false);
         return;
       }
 
@@ -321,11 +346,11 @@ export default function RecipeForm() {
         setDuplicateAlert(
           `Duplicate ingredients found: ${duplicateIngredients.join(", ")}`
         );
-        setLoading(false);
+        setSaving(false);
         return;
       }
 
-      let imageUrl = "";
+      let imageUrl = imagePreview; // Keep existing image if no new one is uploaded
       if (image) {
         const storageRef = ref(storage, `recipes/${Date.now()}_${image.name}`);
         await uploadBytes(storageRef, image);
@@ -333,39 +358,55 @@ export default function RecipeForm() {
       }
 
       const recipeData = {
-        userId: user.uid,
-        title: title.trim(),
+        title,
         cookbook: cookbook.trim(),
-        author: author.trim(),
+        author,
         cuisineType,
-        effort,
-        cookingMethod,
-        cookingTime: parseInt(cookingTime) || 0,
-        servings: parseInt(servings) || 0,
-        ingredients,
-        searchableIngredients: searchableIngredients.map((i) => i.trim()),
+        ingredients: ingredients.map((i) => i.trim()),
         instructions,
         imageUrl,
         tags: tags.map((t) => t.trim()),
         collections: collections.map((c) => c.trim()),
         dietaryTags,
+        effort,
+        cookingMethod,
+        cookingTime: parseInt(cookingTime) || 0,
+        servings: parseInt(servings) || 0,
         allergens,
-        createdAt: new Date().toISOString(),
+        searchableIngredients: searchableIngredients.map((i) => i.trim()),
+        lastModified: new Date().toISOString(),
       };
 
-      await addDoc(collection(db, "recipes"), recipeData);
-      navigate("/recipes");
+      await updateDoc(doc(db, "recipes", id), recipeData);
+      navigate(`/recipe/${id}`);
     } catch (error) {
-      setError("Failed to save recipe. Please try again.");
+      setError("Failed to update recipe. Please try again.");
     }
+    setSaving(false);
     setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Typography>Loading...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Add New Recipe
+          Edit Recipe
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -639,11 +680,14 @@ export default function RecipeForm() {
 
             <Grid item xs={12}>
               <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-                <Button variant="outlined" onClick={() => navigate("/recipes")}>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate(`/recipe/${id}`)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" variant="contained" disabled={loading}>
-                  {loading ? "Saving..." : "Save Recipe"}
+                <Button type="submit" variant="contained" disabled={saving}>
+                  {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </Box>
             </Grid>

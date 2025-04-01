@@ -25,9 +25,12 @@ export default function Login() {
     try {
       setError("");
       setLoading(true);
+      console.log("Attempting login with:", email);
       await login(email, password);
+      console.log("Login successful, navigating to home");
       navigate("/");
     } catch (error) {
+      console.error("Login error:", error);
       setError("Failed to sign in. Please check your credentials.");
     }
     setLoading(false);

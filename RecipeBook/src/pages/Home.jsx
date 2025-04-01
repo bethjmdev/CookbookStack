@@ -20,7 +20,7 @@ import {
 } from "@mui/icons-material";
 
 export default function Home() {
-  const { currentUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   async function handleLogout() {
@@ -33,22 +33,22 @@ export default function Home() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static">
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Recipe Book
           </Typography>
           <Typography variant="body1" sx={{ mr: 2 }}>
-            {currentUser.email}
+            {user.email}
           </Typography>
           <Button color="inherit" onClick={handleLogout}>
             Logout
           </Button>
         </Toolbar>
       </AppBar>
-
-      <Container sx={{ mt: 4 }}>
+      <Toolbar /> {/* This creates space for the fixed AppBar */}
+      <Container sx={{ flex: 1, py: 4 }}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <Card>
