@@ -24,7 +24,6 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Favorite, FavoriteBorder } from "@mui/icons-material";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import TagInput from "../components/TagInput";
 import RecipeCard from "../components/RecipeCard";
 
 // Predefined options for cuisine types
@@ -129,19 +128,14 @@ const INGREDIENT_CATEGORIES = [
 ];
 
 const DIETARY_TAGS = [
-  "Vegan",
+  "None",
   "Vegetarian",
+  "Vegan",
   "Gluten-Free",
   "Dairy-Free",
-  "Peanut-Free",
-  "Tree Nut-Free",
-  "Soy-Free",
-  "Egg-Free",
-  "Shellfish-Free",
-  "Fish-Free",
-  "Kosher",
-  "Halal",
-  "Other",
+  "Nut-Free",
+  "Low-Carb",
+  "High-Protein",
 ];
 
 export default function RecipeList() {
@@ -170,10 +164,29 @@ export default function RecipeList() {
   const [selectedRecipeType, setSelectedRecipeType] = useState("");
   const [selectedIngredientCategory, setSelectedIngredientCategory] =
     useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     fetchRecipes();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const categoriesRef = collection(db, "Category");
+      const querySnapshot = await getDocs(categoriesRef);
+      const categoriesData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setCategories(
+        categoriesData.sort((a, b) => a.name.localeCompare(b.name))
+      );
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
 
   const fetchRecipes = async () => {
     try {
@@ -216,6 +229,10 @@ export default function RecipeList() {
     const matchesIngredientCategory =
       !selectedIngredientCategory ||
       recipe.ingredientCategory === selectedIngredientCategory;
+    const matchesCategory =
+      !selectedCategory ||
+      (recipe.category &&
+        recipe.category.toLowerCase() === selectedCategory.toLowerCase());
     const matchesCookbook =
       !selectedCollection || recipe.cookbook === selectedCollection;
     const matchesAuthor =
@@ -233,6 +250,7 @@ export default function RecipeList() {
       matchesCookingMethod &&
       matchesRecipeType &&
       matchesIngredientCategory &&
+      matchesCategory &&
       matchesCookbook &&
       matchesAuthor &&
       matchesTags &&
@@ -383,31 +401,17 @@ export default function RecipeList() {
           />
         </Grid>
         <Grid item xs={12}>
-          <TagInput
-            value={existingTags}
-            onChange={setExistingTags}
-            existingTags={existingTags}
-          />
-        </Grid>
-        <Grid item xs={12} md={3}>
           <FormControl fullWidth>
-            <InputLabel>Dietary Requirements</InputLabel>
+            <InputLabel>Category</InputLabel>
             <Select
-              multiple
-              value={selectedDietary}
-              label="Dietary Requirements"
-              onChange={(e) => setSelectedDietary(e.target.value)}
-              renderValue={(selected) => (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                  {selected.map((value) => (
-                    <Chip key={value} label={value} />
-                  ))}
-                </Box>
-              )}
+              value={selectedCategory}
+              label="Category"
+              onChange={(e) => setSelectedCategory(e.target.value)}
             >
-              {DIETARY_TAGS.map((tag) => (
-                <MenuItem key={tag} value={tag}>
-                  {tag}
+              <MenuItem value="">All Categories</MenuItem>
+              {categories.map((category) => (
+                <MenuItem key={category.id} value={category.name}>
+                  {category.name}
                 </MenuItem>
               ))}
             </Select>

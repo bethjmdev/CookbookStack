@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../firebase/config";
 import {
   Container,
@@ -20,8 +29,6 @@ import {
   MenuItem,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import TagInput from "../components/TagInput";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { storage } from "../firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../contexts/AuthContext";
@@ -187,10 +194,13 @@ export default function EditRecipe() {
   const [cookingMethod, setCookingMethod] = useState("");
   const [recipeType, setRecipeType] = useState("");
   const [ingredientCategory, setIngredientCategory] = useState("");
+  const [category, setCategory] = useState("");
+  const [existingCategories, setExistingCategories] = useState([]);
 
   useEffect(() => {
     fetchRecipe();
     fetchExistingData();
+    fetchCategories();
   }, [id]);
 
   const fetchRecipe = async () => {
@@ -214,6 +224,7 @@ export default function EditRecipe() {
         setCookingMethod(recipeData.cookingMethod || "");
         setRecipeType(recipeData.recipeType || "");
         setIngredientCategory(recipeData.ingredientCategory || "");
+        setCategory(recipeData.category || "");
       } else {
         setError("Recipe not found");
       }
@@ -251,6 +262,17 @@ export default function EditRecipe() {
       setExistingIngredients(Array.from(ingredientsSet).sort());
     } catch (error) {
       console.error("Error fetching existing data:", error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const categoriesRef = collection(db, "Category");
+      const querySnapshot = await getDocs(categoriesRef);
+      const categories = querySnapshot.docs.map((doc) => doc.data().name);
+      setExistingCategories(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
     }
   };
 
@@ -314,6 +336,23 @@ export default function EditRecipe() {
         return;
       }
 
+      // Save category to Category collection if it doesn't exist
+      if (category) {
+        const categoriesRef = collection(db, "Category");
+        const categoryQuery = query(
+          categoriesRef,
+          where("name", "==", category.toLowerCase())
+        );
+        const categorySnapshot = await getDocs(categoryQuery);
+
+        if (categorySnapshot.empty) {
+          await addDoc(categoriesRef, {
+            name: category.toLowerCase(),
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
       // Check for duplicate ingredients
       const duplicateIngredients = searchableIngredients.filter(
         (ingredient, index) => {
@@ -357,6 +396,7 @@ export default function EditRecipe() {
         lastModified: new Date().toISOString(),
         recipeType,
         ingredientCategory,
+        category: category ? category.toLowerCase() : "", // Save category in lowercase
         isFavorite: recipeData.isFavorite,
       };
 
@@ -509,6 +549,24 @@ export default function EditRecipe() {
               </FormControl>
             </Grid>
 
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={existingCategories}
+                value={category}
+                onChange={(event, newValue) => setCategory(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    required
+                    label="Category"
+                    placeholder="Enter or select a category"
+                    helperText="This will be used for filtering recipes"
+                  />
+                )}
+              />
+            </Grid>
+
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Dietary Requirements</InputLabel>
@@ -610,15 +668,6 @@ export default function EditRecipe() {
                   />
                 ))}
               </Box>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TagInput
-                value={tags}
-                onChange={setTags}
-                existingTags={existingTags}
-                required={false}
-              />
             </Grid>
 
             <Grid item xs={12}>

@@ -21,7 +21,6 @@ import {
   MenuItem,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import TagInput from "../components/TagInput";
 import { useAuth } from "../contexts/AuthContext";
 
 // Predefined options for cuisine types and common ingredients
@@ -94,19 +93,14 @@ const COMMON_INGREDIENTS = [
 ];
 
 const DIETARY_TAGS = [
+  "None",
   "Vegetarian",
   "Vegan",
   "Gluten-Free",
   "Dairy-Free",
   "Nut-Free",
   "Low-Carb",
-  "Keto",
-  "Paleo",
-  "Halal",
-  "Kosher",
-  "Low-Fat",
   "High-Protein",
-  "Sugar-Free",
 ];
 
 const COOKING_METHODS = [
@@ -180,6 +174,9 @@ export default function RecipeForm() {
   const [cookingMethod, setCookingMethod] = useState("");
   const [recipeType, setRecipeType] = useState("");
   const [ingredientCategory, setIngredientCategory] = useState("");
+  const [category, setCategory] = useState("");
+  const [existingCategories, setExistingCategories] = useState([]);
+  const [existingAuthors, setExistingAuthors] = useState([]);
 
   // Helper function to normalize strings
   const normalizeString = (str) => {
@@ -226,8 +223,65 @@ export default function RecipeForm() {
       }
     };
 
+    // Fetch categories from Category collection
+    const fetchCategories = async () => {
+      try {
+        const categoriesRef = collection(db, "Category");
+        const querySnapshot = await getDocs(categoriesRef);
+        const categoriesData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setExistingCategories(categoriesData.map((cat) => cat.name).sort());
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
     fetchExistingData();
+    fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const fetchExistingCookbooks = async () => {
+      try {
+        const cookbooksRef = collection(db, "Cookbook");
+        const q = query(cookbooksRef, where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+        const cookbooksData = querySnapshot.docs.map((doc) => doc.data().name);
+        setExistingCookbooks(cookbooksData);
+      } catch (error) {
+        console.error("Error fetching existing cookbooks:", error);
+      }
+    };
+
+    const fetchExistingAuthors = async () => {
+      try {
+        const authorsRef = collection(db, "Author");
+        const querySnapshot = await getDocs(authorsRef);
+        const authorsData = querySnapshot.docs.map((doc) => doc.data().name);
+        setExistingAuthors(authorsData);
+      } catch (error) {
+        console.error("Error fetching existing authors:", error);
+      }
+    };
+
+    const fetchExistingCategories = async () => {
+      try {
+        const categoriesRef = collection(db, "Category");
+        const q = query(categoriesRef, where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+        const categoriesData = querySnapshot.docs.map((doc) => doc.data().name);
+        setExistingCategories(categoriesData);
+      } catch (error) {
+        console.error("Error fetching existing categories:", error);
+      }
+    };
+
+    fetchExistingCookbooks();
+    fetchExistingAuthors();
+    fetchExistingCategories();
+  }, [user.uid]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -310,6 +364,60 @@ export default function RecipeForm() {
         return;
       }
 
+      // Save the cookbook to the Cookbook collection if it doesn't exist
+      if (cookbook) {
+        const cookbooksRef = collection(db, "Cookbook");
+        const cookbookQuery = query(
+          cookbooksRef,
+          where("name", "==", cookbook.trim().toLowerCase())
+        );
+        const cookbookSnapshot = await getDocs(cookbookQuery);
+
+        if (cookbookSnapshot.empty) {
+          await addDoc(cookbooksRef, {
+            name: cookbook.trim().toLowerCase(),
+            userId: user.uid,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Save the author to the Author collection if it doesn't exist
+      if (author) {
+        const authorsRef = collection(db, "Author");
+        const authorQuery = query(
+          authorsRef,
+          where("name", "==", author.trim().toLowerCase())
+        );
+        const authorSnapshot = await getDocs(authorQuery);
+
+        if (authorSnapshot.empty) {
+          await addDoc(authorsRef, {
+            name: author.trim().toLowerCase(),
+            userId: user.uid,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Save the category to the Category collection if it doesn't exist
+      if (category) {
+        const categoriesRef = collection(db, "Category");
+        const categoryQuery = query(
+          categoriesRef,
+          where("name", "==", category.trim().toLowerCase())
+        );
+        const categorySnapshot = await getDocs(categoryQuery);
+
+        if (categorySnapshot.empty) {
+          await addDoc(categoriesRef, {
+            name: category.trim().toLowerCase(),
+            userId: user.uid,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
       let imageUrl = "";
       if (image) {
         const storageRef = ref(storage, `recipes/${Date.now()}_${image.name}`);
@@ -327,6 +435,7 @@ export default function RecipeForm() {
         cookingMethod,
         recipeType,
         ingredientCategory,
+        category: category.trim(),
         ingredients,
         searchableIngredients: searchableIngredients.map((i) => i.trim()),
         instructions,
@@ -375,14 +484,25 @@ export default function RecipeForm() {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Autocomplete
-                freeSolo
-                options={existingCookbooks}
+              <TextField
+                required
+                fullWidth
+                label="Cookbook Name"
                 value={cookbook}
-                onChange={(event, newValue) => setCookbook(newValue)}
+                onChange={(e) => setCookbook(e.target.value)}
+              />
+              <Autocomplete
+                options={existingCookbooks}
                 renderInput={(params) => (
-                  <TextField {...params} required label="Cookbook Name" />
+                  <TextField
+                    {...params}
+                    label="Select Cookbook"
+                    variant="outlined"
+                  />
                 )}
+                onChange={(event, newValue) => {
+                  setCookbook(newValue || cookbook);
+                }}
               />
             </Grid>
 
@@ -393,6 +513,19 @@ export default function RecipeForm() {
                 label="Author"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
+              />
+              <Autocomplete
+                options={existingAuthors}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Author"
+                    variant="outlined"
+                  />
+                )}
+                onChange={(event, newValue) => {
+                  setAuthor(newValue || author);
+                }}
               />
             </Grid>
 
@@ -469,6 +602,29 @@ export default function RecipeForm() {
               </FormControl>
             </Grid>
 
+            <Grid item xs={12} md={6}>
+              <TextField
+                required
+                fullWidth
+                label="Category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+              <Autocomplete
+                options={existingCategories}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Category"
+                    variant="outlined"
+                  />
+                )}
+                onChange={(event, newValue) => {
+                  setCategory(newValue || category);
+                }}
+              />
+            </Grid>
+
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Dietary Requirements</InputLabel>
@@ -492,15 +648,6 @@ export default function RecipeForm() {
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TagInput
-                value={tags}
-                onChange={setTags}
-                existingTags={existingTags}
-                required={false}
-              />
             </Grid>
 
             <Grid item xs={12}>
