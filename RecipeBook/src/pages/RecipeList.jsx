@@ -25,6 +25,7 @@ import {
 import { Add as AddIcon, Favorite, FavoriteBorder } from "@mui/icons-material";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import TagInput from "../components/TagInput";
+import RecipeCard from "../components/RecipeCard";
 
 // Predefined options for cuisine types
 const CUISINE_TYPES = [
@@ -102,6 +103,47 @@ const EFFORT_LEVELS = [
   "Special Occasion (All Day Event)",
 ];
 
+const RECIPE_TYPES = [
+  "Breakfast",
+  "Dinner",
+  "Dessert",
+  "Snack",
+  "Beverage",
+  "Appetizer",
+  "Side Dish",
+  "Brunch",
+];
+
+const INGREDIENT_CATEGORIES = [
+  "Veggie",
+  "Meat",
+  "Soup",
+  "Beverage",
+  "Grain",
+  "Sauce",
+  "Fruit",
+  "Broth",
+  "Oil",
+  "Dessert sweet",
+  "Dessert savory",
+];
+
+const DIETARY_TAGS = [
+  "Vegan",
+  "Vegetarian",
+  "Gluten-Free",
+  "Dairy-Free",
+  "Peanut-Free",
+  "Tree Nut-Free",
+  "Soy-Free",
+  "Egg-Free",
+  "Shellfish-Free",
+  "Fish-Free",
+  "Kosher",
+  "Halal",
+  "Other",
+];
+
 export default function RecipeList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -112,7 +154,7 @@ export default function RecipeList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState("");
   const [selectedEffort, setSelectedEffort] = useState("");
-  const [selectedDietary, setSelectedDietary] = useState("");
+  const [selectedDietary, setSelectedDietary] = useState([]);
   const [selectedAllergen, setSelectedAllergen] = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
   const [favorites, setFavorites] = useState([]);
@@ -125,6 +167,9 @@ export default function RecipeList() {
   const [searchByIngredient, setSearchByIngredient] = useState("");
   const cookbookName = searchParams.get("cookbook");
   const [selectedCookingMethod, setSelectedCookingMethod] = useState("");
+  const [selectedRecipeType, setSelectedRecipeType] = useState("");
+  const [selectedIngredientCategory, setSelectedIngredientCategory] =
+    useState("");
 
   useEffect(() => {
     fetchRecipes();
@@ -166,6 +211,11 @@ export default function RecipeList() {
     const matchesEffort = !selectedEffort || recipe.effort === selectedEffort;
     const matchesCookingMethod =
       !selectedCookingMethod || recipe.cookingMethod === selectedCookingMethod;
+    const matchesRecipeType =
+      !selectedRecipeType || recipe.recipeType === selectedRecipeType;
+    const matchesIngredientCategory =
+      !selectedIngredientCategory ||
+      recipe.ingredientCategory === selectedIngredientCategory;
     const matchesCookbook =
       !selectedCollection || recipe.cookbook === selectedCollection;
     const matchesAuthor =
@@ -181,6 +231,8 @@ export default function RecipeList() {
       matchesCuisine &&
       matchesEffort &&
       matchesCookingMethod &&
+      matchesRecipeType &&
+      matchesIngredientCategory &&
       matchesCookbook &&
       matchesAuthor &&
       matchesTags &&
@@ -194,39 +246,21 @@ export default function RecipeList() {
   const uniqueAuthors = [...new Set(recipes.map((recipe) => recipe.author))];
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
-        {cookbookName ? (
-          <Typography variant="h4" component="h1" gutterBottom>
-            Recipes from {cookbookName}
-          </Typography>
-        ) : (
-          <Typography variant="h4" component="h1" gutterBottom>
-            My Recipes
-          </Typography>
-        )}
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-          <TextField
-            fullWidth
-            label="Search recipes"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Button
-            variant="contained"
-            onClick={() => navigate("/recipe/new")}
-            startIcon={<AddIcon />}
-          >
-            Add Recipe
-          </Button>
-        </Box>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Recipe Book
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => navigate("/recipes/new")}
+          sx={{ mb: 2 }}
+        >
+          Add New Recipe
+        </Button>
       </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={3}>
@@ -290,6 +324,40 @@ export default function RecipeList() {
         </Grid>
         <Grid item xs={12} md={3}>
           <FormControl fullWidth>
+            <InputLabel>Meal Type</InputLabel>
+            <Select
+              value={selectedRecipeType}
+              label="Meal Type"
+              onChange={(e) => setSelectedRecipeType(e.target.value)}
+            >
+              <MenuItem value="">All</MenuItem>
+              {RECIPE_TYPES.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <FormControl fullWidth>
+            <InputLabel>Food Group</InputLabel>
+            <Select
+              value={selectedIngredientCategory}
+              label="Food Group"
+              onChange={(e) => setSelectedIngredientCategory(e.target.value)}
+            >
+              <MenuItem value="">All</MenuItem>
+              {INGREDIENT_CATEGORIES.map((category) => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <FormControl fullWidth>
             <InputLabel>Cookbook</InputLabel>
             <Select
               value={selectedCollection}
@@ -321,98 +389,36 @@ export default function RecipeList() {
             existingTags={existingTags}
           />
         </Grid>
+        <Grid item xs={12} md={3}>
+          <FormControl fullWidth>
+            <InputLabel>Dietary Requirements</InputLabel>
+            <Select
+              multiple
+              value={selectedDietary}
+              label="Dietary Requirements"
+              onChange={(e) => setSelectedDietary(e.target.value)}
+              renderValue={(selected) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip key={value} label={value} />
+                  ))}
+                </Box>
+              )}
+            >
+              {DIETARY_TAGS.map((tag) => (
+                <MenuItem key={tag} value={tag}>
+                  {tag}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
       </Grid>
 
       <Grid container spacing={3}>
         {filteredRecipes.map((recipe) => (
           <Grid item key={recipe.id} xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                cursor: "pointer",
-                "&:hover": {
-                  boxShadow: 6,
-                },
-              }}
-              onClick={() => navigate(`/recipe/${recipe.id}`)}
-            >
-              {recipe.imageUrl && (
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={recipe.imageUrl}
-                  alt={recipe.title}
-                />
-              )}
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography gutterBottom variant="h5" component="h2">
-                  {recipe.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Cookbook: {recipe.cookbook}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Author: {recipe.author}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Cuisine: {recipe.cuisineType}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Effort: {recipe.effort}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Cooking Time: {recipe.cookingTime} minutes
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Servings: {recipe.servings}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Ingredients: {recipe.ingredients.join(", ")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Cooking Method: {recipe.cookingMethod}
-                </Typography>
-                {recipe.tags && recipe.tags.length > 0 && (
-                  <Box sx={{ mt: 1 }}>
-                    {recipe.tags.map((tag) => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        size="small"
-                        variant="outlined"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!existingTags.includes(tag)) {
-                            setExistingTags([...existingTags, tag]);
-                          }
-                        }}
-                      />
-                    ))}
-                  </Box>
-                )}
-              </CardContent>
-              <CardActions>
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isFavorite(recipe.id)) {
-                      removeFromFavorites(recipe.id);
-                    } else {
-                      addToFavorites(recipe);
-                    }
-                  }}
-                >
-                  {isFavorite(recipe.id) ? (
-                    <Favorite color="error" />
-                  ) : (
-                    <FavoriteBorder />
-                  )}
-                </IconButton>
-              </CardActions>
-            </Card>
+            <RecipeCard recipe={recipe} />
           </Grid>
         ))}
       </Grid>

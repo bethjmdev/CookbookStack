@@ -1,4 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  doc,
+  updateDoc,
+  query,
+  collection,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+import { db } from "../firebase/config";
+import { useAuth } from "./AuthContext";
 
 const FavoritesContext = createContext();
 
@@ -8,31 +18,66 @@ export function useFavorites() {
 
 export function FavoritesProvider({ children }) {
   const [favorites, setFavorites] = useState([]);
+  const { user } = useAuth();
 
-  // Load favorites from localStorage on mount
+  // Set up real-time listener for favorites
   useEffect(() => {
-    const savedFavorites = localStorage.getItem("favorites");
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+    if (!user) {
+      setFavorites([]);
+      return;
     }
-  }, []);
 
-  // Save favorites to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("favorites", JSON.stringify(favorites));
-  }, [favorites]);
+    // Create query for user's favorite recipes
+    const q = query(
+      collection(db, "recipes"),
+      where("userId", "==", user.uid),
+      where("isFavorite", "==", true)
+    );
 
-  const addToFavorites = (recipe) => {
-    setFavorites((prev) => {
-      if (prev.some((fav) => fav.id === recipe.id)) {
-        return prev;
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const favoritesData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setFavorites(favoritesData);
+      },
+      (error) => {
+        console.error("Error listening to favorites:", error);
       }
-      return [...prev, recipe];
-    });
+    );
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [user]);
+
+  const addToFavorites = async (recipe) => {
+    if (!user) return;
+
+    try {
+      const recipeRef = doc(db, "recipes", recipe.id);
+      await updateDoc(recipeRef, {
+        isFavorite: true,
+        userId: user.uid, // Add userId when favoriting
+      });
+    } catch (error) {
+      console.error("Error adding to favorites:", error);
+    }
   };
 
-  const removeFromFavorites = (recipeId) => {
-    setFavorites((prev) => prev.filter((recipe) => recipe.id !== recipeId));
+  const removeFromFavorites = async (recipeId) => {
+    if (!user) return;
+
+    try {
+      const recipeRef = doc(db, "recipes", recipeId);
+      await updateDoc(recipeRef, {
+        isFavorite: false,
+      });
+    } catch (error) {
+      console.error("Error removing from favorites:", error);
+    }
   };
 
   const isFavorite = (recipeId) => {

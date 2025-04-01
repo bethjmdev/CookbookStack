@@ -1,0 +1,8 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pot handle -->
+  <path d="M8 8C8 8 12 4 16 4C20 4 24 8 24 8" stroke="#333333" stroke-width="2" stroke-linecap="round"/>
+  <!-- Pot body -->
+  <path d="M6 10H26V22C26 24.2091 24.2091 26 22 26H10C7.79086 26 6 24.2091 6 22V10Z" fill="#666666"/>
+  <!-- Steam -->
+  <path d="M13 6C13 6 12 3 14 2M16 6C16 6 15 2 18 1M19 6C19 6 19 2 21 2" stroke="#999999" stroke-linecap="round"/>
+</svg> 

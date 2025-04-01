@@ -17,21 +17,16 @@ export default function TagInput({ value, onChange, existingTags = [] }) {
       }}
       renderTags={(value, getTagProps) =>
         value.map((option, index) => (
-          <Chip
-            label={option}
-            {...getTagProps({ index })}
-            color="primary"
-            variant="outlined"
-          />
+          <Chip label={option} {...getTagProps({ index })} key={option} />
         ))
       }
       renderInput={(params) => (
         <TextField
           {...params}
           variant="outlined"
-          label="Tags"
-          placeholder="Add tags"
-          helperText="Press enter to add a new tag"
+          label="Category"
+          placeholder="Add category"
+          helperText="Press enter to add a new category"
           fullWidth
         />
       )}

@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import TagInput from "../components/TagInput";
+import { useAuth } from "../contexts/AuthContext";
 
 // Predefined options for cuisine types and common ingredients
 const CUISINE_TYPES = [
@@ -80,24 +81,16 @@ const CUISINE_TYPES = [
 ];
 
 const COMMON_INGREDIENTS = [
-  "Salt",
-  "Pepper",
-  "Olive Oil",
-  "Garlic",
-  "Onion",
-  "Butter",
-  "Flour",
-  "Sugar",
-  "Eggs",
-  "Milk",
-  "Rice",
-  "Pasta",
-  "Tomatoes",
-  "Cheese",
   "Chicken",
   "Beef",
   "Fish",
-  "Vegetables",
+  "Eggplant",
+  "Potato",
+  "Carrot",
+  "Tomato",
+  "Cabbage",
+  "Mushroom",
+  "Pasta",
 ];
 
 const DIETARY_TAGS = [
@@ -137,8 +130,34 @@ const EFFORT_LEVELS = [
   "Special Occasion (All Day Event)",
 ];
 
+const RECIPE_TYPES = [
+  "Breakfast",
+  "Dinner",
+  "Dessert",
+  "Snack",
+  "Beverage",
+  "Appetizer",
+  "Side Dish",
+  "Brunch",
+];
+
+const INGREDIENT_CATEGORIES = [
+  "Veggie",
+  "Meat",
+  "Soup",
+  "Beverage",
+  "Grain",
+  "Sauce",
+  "Fruit",
+  "Broth",
+  "Oil",
+  "Dessert sweet",
+  "Dessert savory",
+];
+
 export default function RecipeForm() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [cookbook, setCookbook] = useState("");
   const [author, setAuthor] = useState("");
@@ -155,17 +174,12 @@ export default function RecipeForm() {
   const [existingCookbooks, setExistingCookbooks] = useState([]);
   const [existingIngredients, setExistingIngredients] = useState([]);
   const [duplicateAlert, setDuplicateAlert] = useState("");
-  const [collections, setCollections] = useState([]);
-  const [newCollection, setNewCollection] = useState("");
-  const [existingCollections, setExistingCollections] = useState([]);
   const [dietaryTags, setDietaryTags] = useState([]);
   const [effort, setEffort] = useState("");
-  const [cookingTime, setCookingTime] = useState("");
-  const [servings, setServings] = useState("");
-  const [allergens, setAllergens] = useState([]);
-  const [newAllergen, setNewAllergen] = useState("");
   const [searchableIngredients, setSearchableIngredients] = useState([]);
   const [cookingMethod, setCookingMethod] = useState("");
+  const [recipeType, setRecipeType] = useState("");
+  const [ingredientCategory, setIngredientCategory] = useState("");
 
   // Helper function to normalize strings
   const normalizeString = (str) => {
@@ -188,7 +202,6 @@ export default function RecipeForm() {
         const tagsSet = new Set();
         const cookbooksSet = new Set();
         const ingredientsSet = new Set();
-        const collectionsSet = new Set();
 
         querySnapshot.docs.forEach((doc) => {
           const recipe = doc.data();
@@ -203,17 +216,11 @@ export default function RecipeForm() {
               ingredientsSet.add(ingredient)
             );
           }
-          if (recipe.collections && Array.isArray(recipe.collections)) {
-            recipe.collections.forEach((collection) =>
-              collectionsSet.add(collection)
-            );
-          }
         });
 
         setExistingTags(Array.from(tagsSet).sort());
         setExistingCookbooks(Array.from(cookbooksSet).sort());
         setExistingIngredients(Array.from(ingredientsSet).sort());
-        setExistingCollections(Array.from(collectionsSet).sort());
       } catch (error) {
         console.error("Error fetching existing data:", error);
       }
@@ -258,28 +265,6 @@ export default function RecipeForm() {
     setSearchableIngredients(
       searchableIngredients.filter((i) => i !== ingredient)
     );
-  };
-
-  const handleAddCollection = () => {
-    if (newCollection && !collections.includes(newCollection)) {
-      setCollections([...collections, newCollection]);
-      setNewCollection("");
-    }
-  };
-
-  const handleRemoveCollection = (collection) => {
-    setCollections(collections.filter((c) => c !== collection));
-  };
-
-  const handleAddAllergen = () => {
-    if (newAllergen && !allergens.includes(newAllergen)) {
-      setAllergens([...allergens, newAllergen]);
-      setNewAllergen("");
-    }
-  };
-
-  const handleRemoveAllergen = (allergen) => {
-    setAllergens(allergens.filter((a) => a !== allergen));
   };
 
   const handleSubmit = async (e) => {
@@ -340,17 +325,16 @@ export default function RecipeForm() {
         cuisineType,
         effort,
         cookingMethod,
-        cookingTime: parseInt(cookingTime) || 0,
-        servings: parseInt(servings) || 0,
+        recipeType,
+        ingredientCategory,
         ingredients,
         searchableIngredients: searchableIngredients.map((i) => i.trim()),
         instructions,
         imageUrl,
         tags: tags.map((t) => t.trim()),
-        collections: collections.map((c) => c.trim()),
         dietaryTags,
-        allergens,
         createdAt: new Date().toISOString(),
+        isFavorite: false,
       };
 
       await addDoc(collection(db, "recipes"), recipeData);
@@ -452,102 +436,70 @@ export default function RecipeForm() {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Cooking Time (minutes)"
-                type="number"
-                value={cookingTime}
-                onChange={(e) => setCookingTime(e.target.value)}
-              />
+              <FormControl fullWidth required>
+                <InputLabel>Meal Type</InputLabel>
+                <Select
+                  value={recipeType}
+                  label="Meal Type"
+                  onChange={(e) => setRecipeType(e.target.value)}
+                >
+                  {RECIPE_TYPES.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Servings"
-                type="number"
-                value={servings}
-                onChange={(e) => setServings(e.target.value)}
-              />
+              <FormControl fullWidth required>
+                <InputLabel>Food Group</InputLabel>
+                <Select
+                  value={ingredientCategory}
+                  label="Food Group"
+                  onChange={(e) => setIngredientCategory(e.target.value)}
+                >
+                  {INGREDIENT_CATEGORIES.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12}>
-              <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-                <Autocomplete
-                  freeSolo
-                  options={existingCollections}
-                  value={newCollection}
-                  onChange={(event, newValue) => setNewCollection(newValue)}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Add Collection" />
+              <FormControl fullWidth>
+                <InputLabel>Dietary Requirements</InputLabel>
+                <Select
+                  multiple
+                  value={dietaryTags}
+                  label="Dietary Requirements"
+                  onChange={(e) => setDietaryTags(e.target.value)}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={value} />
+                      ))}
+                    </Box>
                   )}
-                  sx={{ flex: 1 }}
-                />
-                <IconButton onClick={handleAddCollection} color="primary">
-                  <AddIcon />
-                </IconButton>
-              </Box>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {collections.map((collection) => (
-                  <Chip
-                    key={collection}
-                    label={collection}
-                    onDelete={() => handleRemoveCollection(collection)}
-                  />
-                ))}
-              </Box>
+                >
+                  {DIETARY_TAGS.map((tag) => (
+                    <MenuItem key={tag} value={tag}>
+                      {tag}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12}>
-              <Autocomplete
-                multiple
-                options={DIETARY_TAGS}
-                value={dietaryTags}
-                onChange={(event, newValue) => setDietaryTags(newValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Dietary Tags" />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-                <TextField
-                  fullWidth
-                  label="Add Allergen"
-                  value={newAllergen}
-                  onChange={(e) => setNewAllergen(e.target.value)}
-                />
-                <IconButton onClick={handleAddAllergen} color="primary">
-                  <AddIcon />
-                </IconButton>
-              </Box>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {allergens.map((allergen) => (
-                  <Chip
-                    key={allergen}
-                    label={allergen}
-                    onDelete={() => handleRemoveAllergen(allergen)}
-                  />
-                ))}
-              </Box>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                required
-                fullWidth
-                multiline
-                rows={6}
-                label="Ingredients List (with measurements)"
-                value={ingredients}
-                onChange={(e) => setIngredients(e.target.value)}
-                placeholder="Enter ingredients with their measurements, one per line. Example:
-2 cups all-purpose flour
-1 teaspoon salt
-3 tablespoons olive oil
-2 cloves garlic, minced"
-                helperText="Enter each ingredient on a new line with its measurement"
+              <TagInput
+                value={tags}
+                onChange={setTags}
+                existingTags={existingTags}
+                required={false}
               />
             </Grid>
 
@@ -557,7 +509,7 @@ export default function RecipeForm() {
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Add ingredients that you want to be able to search for this
-                recipe by
+                recipe by (optional)
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Autocomplete
@@ -594,22 +546,38 @@ export default function RecipeForm() {
             </Grid>
 
             <Grid item xs={12}>
-              <TagInput
-                value={tags}
-                onChange={setTags}
-                existingTags={existingTags}
+              <Typography variant="h6" gutterBottom>
+                Recipe Details
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={10}
+                label="Ingredients List (with measurements)"
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                placeholder="Enter ingredients with their measurements, one per line. Example:
+2 cups all-purpose flour
+1 teaspoon salt
+3 tablespoons olive oil
+2 cloves garlic, minced"
+                helperText="Enter each ingredient on a new line with its measurement (optional)"
               />
             </Grid>
 
             <Grid item xs={12}>
               <TextField
-                required
                 fullWidth
                 multiline
-                rows={6}
+                rows={10}
                 label="Instructions"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
+                placeholder="Enter the recipe instructions step by step"
+                helperText="Enter each step on a new line (optional)"
               />
             </Grid>
 
@@ -619,6 +587,7 @@ export default function RecipeForm() {
                 type="file"
                 onChange={handleImageChange}
                 InputLabelProps={{ shrink: true }}
+                helperText="Optional: Add a photo of your recipe"
               />
             </Grid>
 
