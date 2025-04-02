@@ -28,58 +28,21 @@ import RecipeCard from "../components/RecipeCard";
 
 // Predefined options for cuisine types
 const CUISINE_TYPES = [
-  "African",
   "American",
-  "Asian",
-  "Australian",
-  "Austrian",
-  "Belgian",
-  "Brazilian",
-  "British",
-  "Cajun",
-  "Caribbean",
-  "Chinese",
-  "Cuban",
-  "Danish",
-  "Dutch",
-  "Egyptian",
-  "Filipino",
-  "French",
-  "German",
-  "Greek",
-  "Hungarian",
-  "Indian",
-  "Indonesian",
-  "Irish",
-  "Italian",
-  "Japanese",
-  "Jewish",
   "Korean",
-  "Lebanese",
-  "Malaysian",
-  "Mediterranean",
-  "Mexican",
-  "Middle Eastern",
-  "Moroccan",
-  "Nepalese",
-  "New Zealand",
-  "Nordic",
-  "Pakistani",
-  "Peruvian",
-  "Polish",
-  "Portuguese",
-  "Russian",
-  "Scandinavian",
-  "Scottish",
-  "Spanish",
-  "Swedish",
-  "Swiss",
-  "Taiwanese",
-  "Thai",
-  "Turkish",
-  "Ukrainian",
+  "Chinese",
+  "Japanese",
   "Vietnamese",
+  "Lebanese",
+  "Mediterranean",
+  "Jewish",
+  "Italian",
+  "Mexican",
+  "Indian",
+  "Polish",
+  "Irish",
   "Other",
+  "European",
 ];
 
 const COOKING_METHODS = [
@@ -148,7 +111,6 @@ export default function RecipeList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState("");
   const [selectedEffort, setSelectedEffort] = useState("");
-  const [selectedDietary, setSelectedDietary] = useState([]);
   const [selectedAllergen, setSelectedAllergen] = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
   const [favorites, setFavorites] = useState([]);
@@ -156,7 +118,6 @@ export default function RecipeList() {
   const [existingCollections, setExistingCollections] = useState([]);
   const [existingCuisines, setExistingCuisines] = useState([]);
   const [existingEfforts, setExistingEfforts] = useState([]);
-  const [existingDietaryTags, setExistingDietaryTags] = useState([]);
   const [existingAllergens, setExistingAllergens] = useState([]);
   const [searchByIngredient, setSearchByIngredient] = useState("");
   const cookbookName = searchParams.get("cookbook");
@@ -237,11 +198,14 @@ export default function RecipeList() {
       !selectedCollection || recipe.cookbook === selectedCollection;
     const matchesAuthor =
       !selectedAllergen || recipe.author === selectedAllergen;
-    const matchesTags =
-      existingTags.length === 0 ||
-      (recipe.tags && existingTags.every((tag) => recipe.tags.includes(tag)));
     const matchesCookbookFilter =
       !cookbookName || recipe.cookbook === cookbookName;
+    const matchesIngredient =
+      !searchByIngredient ||
+      (recipe.searchableIngredients &&
+        recipe.searchableIngredients.some((ingredient) =>
+          ingredient.toLowerCase().includes(searchByIngredient.toLowerCase())
+        ));
 
     return (
       matchesSearch &&
@@ -253,8 +217,8 @@ export default function RecipeList() {
       matchesCategory &&
       matchesCookbook &&
       matchesAuthor &&
-      matchesTags &&
-      matchesCookbookFilter
+      matchesCookbookFilter &&
+      matchesIngredient
     );
   });
 
@@ -273,7 +237,7 @@ export default function RecipeList() {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => navigate("/recipes/new")}
+          onClick={() => navigate("/recipe/new")}
           sx={{ mb: 2 }}
         >
           Add New Recipe
@@ -287,6 +251,15 @@ export default function RecipeList() {
             label="Search Recipes"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <TextField
+            fullWidth
+            label="Search by Ingredient"
+            value={searchByIngredient}
+            onChange={(e) => setSearchByIngredient(e.target.value)}
+            placeholder="Enter an ingredient"
           />
         </Grid>
         <Grid item xs={12} md={3}>

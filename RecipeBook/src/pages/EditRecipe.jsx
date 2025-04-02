@@ -35,58 +35,21 @@ import { useAuth } from "../contexts/AuthContext";
 
 // Import the same constants from RecipeForm
 const CUISINE_TYPES = [
-  "African",
   "American",
-  "Asian",
-  "Australian",
-  "Austrian",
-  "Belgian",
-  "Brazilian",
-  "British",
-  "Cajun",
-  "Caribbean",
-  "Chinese",
-  "Cuban",
-  "Danish",
-  "Dutch",
-  "Egyptian",
-  "Filipino",
-  "French",
-  "German",
-  "Greek",
-  "Hungarian",
-  "Indian",
-  "Indonesian",
-  "Irish",
-  "Italian",
-  "Japanese",
-  "Jewish",
   "Korean",
-  "Lebanese",
-  "Malaysian",
-  "Mediterranean",
-  "Mexican",
-  "Middle Eastern",
-  "Moroccan",
-  "Nepalese",
-  "New Zealand",
-  "Nordic",
-  "Pakistani",
-  "Peruvian",
-  "Polish",
-  "Portuguese",
-  "Russian",
-  "Scandinavian",
-  "Scottish",
-  "Spanish",
-  "Swedish",
-  "Swiss",
-  "Taiwanese",
-  "Thai",
-  "Turkish",
-  "Ukrainian",
+  "Chinese",
+  "Japanese",
   "Vietnamese",
+  "Lebanese",
+  "Mediterranean",
+  "Jewish",
+  "Italian",
+  "Mexican",
+  "Indian",
+  "Polish",
+  "Irish",
   "Other",
+  "European",
 ];
 
 const COMMON_INGREDIENTS = [
@@ -188,7 +151,6 @@ export default function EditRecipe() {
   const [existingCookbooks, setExistingCookbooks] = useState([]);
   const [existingIngredients, setExistingIngredients] = useState([]);
   const [duplicateAlert, setDuplicateAlert] = useState("");
-  const [dietaryTags, setDietaryTags] = useState([]);
   const [effort, setEffort] = useState("");
   const [searchableIngredients, setSearchableIngredients] = useState([]);
   const [cookingMethod, setCookingMethod] = useState("");
@@ -218,12 +180,30 @@ export default function EditRecipe() {
         setInstructions(recipeData.instructions || "");
         setImagePreview(recipeData.imageUrl || "");
         setTags(recipeData.tags || []);
-        setDietaryTags(recipeData.dietaryTags || []);
         setEffort(recipeData.effort || "");
         setSearchableIngredients(recipeData.searchableIngredients || []);
-        setCookingMethod(recipeData.cookingMethod || "");
-        setRecipeType(recipeData.recipeType || "");
-        setIngredientCategory(recipeData.ingredientCategory || "");
+
+        // Handle case sensitivity for these fields
+        const cookingMethodMatch = COOKING_METHODS.find(
+          (method) =>
+            method.toLowerCase() === recipeData.cookingMethod?.toLowerCase()
+        );
+        setCookingMethod(cookingMethodMatch || recipeData.cookingMethod || "");
+
+        const recipeTypeMatch = RECIPE_TYPES.find(
+          (type) => type.toLowerCase() === recipeData.recipeType?.toLowerCase()
+        );
+        setRecipeType(recipeTypeMatch || recipeData.recipeType || "");
+
+        const ingredientCategoryMatch = INGREDIENT_CATEGORIES.find(
+          (category) =>
+            category.toLowerCase() ===
+            recipeData.ingredientCategory?.toLowerCase()
+        );
+        setIngredientCategory(
+          ingredientCategoryMatch || recipeData.ingredientCategory || ""
+        );
+
         setCategory(recipeData.category || "");
       } else {
         setError("Recipe not found");
@@ -289,7 +269,7 @@ export default function EditRecipe() {
       const normalizedIngredient = newIngredient.trim();
       const similarIngredient = findSimilarEntry(
         normalizedIngredient,
-        ingredients
+        searchableIngredients
       );
 
       if (similarIngredient) {
@@ -299,14 +279,30 @@ export default function EditRecipe() {
         return;
       }
 
-      setIngredients([...ingredients, normalizedIngredient]);
+      setSearchableIngredients([
+        ...searchableIngredients,
+        normalizedIngredient,
+      ]);
       setNewIngredient("");
       setDuplicateAlert("");
     }
   };
 
   const handleRemoveIngredient = (ingredient) => {
-    setIngredients(ingredients.filter((i) => i !== ingredient));
+    setSearchableIngredients(
+      searchableIngredients.filter((i) => i !== ingredient)
+    );
+  };
+
+  const findSimilarEntry = (value, existingValues) => {
+    const normalizedValue = normalizeString(value);
+    return existingValues.find(
+      (existing) => normalizeString(existing) === normalizedValue
+    );
+  };
+
+  const normalizeString = (str) => {
+    return str.trim().toLowerCase();
   };
 
   const handleSubmit = async (e) => {
@@ -380,29 +376,35 @@ export default function EditRecipe() {
         imageUrl = await getDownloadURL(storageRef);
       }
 
+      // Get the current recipe data to preserve isFavorite status
+      const currentRecipeRef = doc(db, "recipes", id);
+      const currentRecipeSnap = await getDoc(currentRecipeRef);
+      const currentRecipeData = currentRecipeSnap.data();
+
       const recipeData = {
-        title,
+        title: title.trim(),
         cookbook: cookbook.trim(),
-        author,
-        cuisineType,
-        ingredients: ingredients.map((i) => i.trim()),
-        instructions,
+        author: author.trim(),
+        cuisineType: cuisineType.toLowerCase(),
+        ingredients: ingredients,
+        instructions: instructions,
         imageUrl,
         tags: tags.map((t) => t.trim()),
-        dietaryTags,
-        effort,
-        cookingMethod,
+        effort: effort.toLowerCase(),
+        cookingMethod: cookingMethod.toLowerCase(),
         searchableIngredients: searchableIngredients.map((i) => i.trim()),
         lastModified: new Date().toISOString(),
-        recipeType,
-        ingredientCategory,
-        category: category ? category.toLowerCase() : "", // Save category in lowercase
-        isFavorite: recipeData.isFavorite,
+        recipeType: recipeType.toLowerCase(),
+        ingredientCategory: ingredientCategory.toLowerCase(),
+        category: category ? category.toLowerCase() : "",
+        isFavorite: currentRecipeData.isFavorite || false,
+        userId: user.uid,
       };
 
-      await updateDoc(doc(db, "recipes", id), recipeData);
+      await updateDoc(currentRecipeRef, recipeData);
       navigate(`/recipe/${id}`);
     } catch (error) {
+      console.error("Error updating recipe:", error);
       setError("Failed to update recipe. Please try again.");
     }
     setSaving(false);
@@ -568,31 +570,6 @@ export default function EditRecipe() {
             </Grid>
 
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Dietary Requirements</InputLabel>
-                <Select
-                  multiple
-                  value={dietaryTags}
-                  label="Dietary Requirements"
-                  onChange={(e) => setDietaryTags(e.target.value)}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={value} />
-                      ))}
-                    </Box>
-                  )}
-                >
-                  {DIETARY_TAGS.map((tag) => (
-                    <MenuItem key={tag} value={tag}>
-                      {tag}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
                 Recipe Details
               </Typography>
@@ -637,23 +614,18 @@ export default function EditRecipe() {
                 recipe by (optional)
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Autocomplete
-                  freeSolo
-                  options={[...COMMON_INGREDIENTS, ...existingIngredients]}
+                <TextField
+                  fullWidth
                   value={newIngredient}
-                  onChange={(event, newValue) => {
-                    if (newValue && !searchableIngredients.includes(newValue)) {
-                      setSearchableIngredients([
-                        ...searchableIngredients,
-                        newValue,
-                      ]);
-                      setNewIngredient("");
+                  onChange={(e) => setNewIngredient(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddIngredient();
                     }
                   }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Add Searchable Ingredient" />
-                  )}
-                  sx={{ flex: 1 }}
+                  label="Add Searchable Ingredient"
+                  placeholder="Type an ingredient and press Enter or click +"
                 />
                 <IconButton onClick={handleAddIngredient} color="primary">
                   <AddIcon />

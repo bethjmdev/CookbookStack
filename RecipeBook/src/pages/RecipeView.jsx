@@ -17,6 +17,8 @@ import {
   ListItem,
   ListItemText,
   IconButton,
+  Dialog,
+  DialogContent,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -32,6 +34,7 @@ export default function RecipeView() {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [openImageDialog, setOpenImageDialog] = useState(false);
 
   useEffect(() => {
     fetchRecipe();
@@ -116,10 +119,32 @@ export default function RecipeView() {
                 maxHeight: "400px",
                 objectFit: "cover",
                 borderRadius: "8px",
+                cursor: "pointer",
               }}
+              onClick={() => setOpenImageDialog(true)}
             />
           </Box>
         )}
+
+        {/* Full Image Dialog */}
+        <Dialog
+          open={openImageDialog}
+          onClose={() => setOpenImageDialog(false)}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogContent>
+            <img
+              src={recipe?.imageUrl}
+              alt={recipe?.title}
+              style={{
+                width: "100%",
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </DialogContent>
+        </Dialog>
 
         {/* Recipe Details */}
         <Paper sx={{ p: 3 }}>
@@ -150,11 +175,6 @@ export default function RecipeView() {
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
                 Cooking Time: {recipe.cookingTime} minutes
-              </Typography>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="body2" color="text.secondary">
-                Servings: {recipe.servings}
               </Typography>
             </Grid>
           </Grid>

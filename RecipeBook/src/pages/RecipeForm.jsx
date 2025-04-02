@@ -25,58 +25,21 @@ import { useAuth } from "../contexts/AuthContext";
 
 // Predefined options for cuisine types and common ingredients
 const CUISINE_TYPES = [
-  "African",
   "American",
-  "Asian",
-  "Australian",
-  "Austrian",
-  "Belgian",
-  "Brazilian",
-  "British",
-  "Cajun",
-  "Caribbean",
-  "Chinese",
-  "Cuban",
-  "Danish",
-  "Dutch",
-  "Egyptian",
-  "Filipino",
-  "French",
-  "German",
-  "Greek",
-  "Hungarian",
-  "Indian",
-  "Indonesian",
-  "Irish",
-  "Italian",
-  "Japanese",
-  "Jewish",
   "Korean",
-  "Lebanese",
-  "Malaysian",
-  "Mediterranean",
-  "Mexican",
-  "Middle Eastern",
-  "Moroccan",
-  "Nepalese",
-  "New Zealand",
-  "Nordic",
-  "Pakistani",
-  "Peruvian",
-  "Polish",
-  "Portuguese",
-  "Russian",
-  "Scandinavian",
-  "Scottish",
-  "Spanish",
-  "Swedish",
-  "Swiss",
-  "Taiwanese",
-  "Thai",
-  "Turkish",
-  "Ukrainian",
+  "Chinese",
+  "Japanese",
   "Vietnamese",
+  "Lebanese",
+  "Mediterranean",
+  "Jewish",
+  "Italian",
+  "Mexican",
+  "Indian",
+  "Polish",
+  "Irish",
   "Other",
+  "European",
 ];
 
 const COMMON_INGREDIENTS = [
@@ -168,7 +131,6 @@ export default function RecipeForm() {
   const [existingCookbooks, setExistingCookbooks] = useState([]);
   const [existingIngredients, setExistingIngredients] = useState([]);
   const [duplicateAlert, setDuplicateAlert] = useState("");
-  const [dietaryTags, setDietaryTags] = useState([]);
   const [effort, setEffort] = useState("");
   const [searchableIngredients, setSearchableIngredients] = useState([]);
   const [cookingMethod, setCookingMethod] = useState("");
@@ -181,6 +143,15 @@ export default function RecipeForm() {
   // Helper function to normalize strings
   const normalizeString = (str) => {
     return str.trim().toLowerCase();
+  };
+
+  // Helper function to capitalize first letter of each word
+  const capitalizeWords = (str) => {
+    return str
+      .trim()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   };
 
   // Helper function to check for similar entries
@@ -227,7 +198,8 @@ export default function RecipeForm() {
     const fetchCategories = async () => {
       try {
         const categoriesRef = collection(db, "Category");
-        const querySnapshot = await getDocs(categoriesRef);
+        const q = query(categoriesRef, where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
         const categoriesData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -248,8 +220,15 @@ export default function RecipeForm() {
         const cookbooksRef = collection(db, "Cookbook");
         const q = query(cookbooksRef, where("userId", "==", user.uid));
         const querySnapshot = await getDocs(q);
-        const cookbooksData = querySnapshot.docs.map((doc) => doc.data().name);
-        setExistingCookbooks(cookbooksData);
+        const cookbooksData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return data.displayName || capitalizeWords(data.name);
+        });
+        // Remove duplicates by normalizing names
+        const uniqueCookbooks = Array.from(
+          new Set(cookbooksData.map(normalizeString))
+        );
+        setExistingCookbooks(uniqueCookbooks);
       } catch (error) {
         console.error("Error fetching existing cookbooks:", error);
       }
@@ -259,8 +238,15 @@ export default function RecipeForm() {
       try {
         const authorsRef = collection(db, "Author");
         const querySnapshot = await getDocs(authorsRef);
-        const authorsData = querySnapshot.docs.map((doc) => doc.data().name);
-        setExistingAuthors(authorsData);
+        const authorsData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return data.displayName || capitalizeWords(data.name);
+        });
+        // Remove duplicates by normalizing names
+        const uniqueAuthors = Array.from(
+          new Set(authorsData.map(normalizeString))
+        );
+        setExistingAuthors(uniqueAuthors);
       } catch (error) {
         console.error("Error fetching existing authors:", error);
       }
@@ -367,15 +353,21 @@ export default function RecipeForm() {
       // Save the cookbook to the Cookbook collection if it doesn't exist
       if (cookbook) {
         const cookbooksRef = collection(db, "Cookbook");
+        const normalizedCookbook = cookbook.trim().toLowerCase();
+        const displayName = capitalizeWords(cookbook);
+
+        // Check for existing cookbook with either the normalized name or display name
         const cookbookQuery = query(
           cookbooksRef,
-          where("name", "==", cookbook.trim().toLowerCase())
+          where("userId", "==", user.uid),
+          where("name", "==", normalizedCookbook)
         );
         const cookbookSnapshot = await getDocs(cookbookQuery);
 
         if (cookbookSnapshot.empty) {
           await addDoc(cookbooksRef, {
-            name: cookbook.trim().toLowerCase(),
+            name: normalizedCookbook,
+            displayName: displayName,
             userId: user.uid,
             createdAt: new Date().toISOString(),
           });
@@ -385,15 +377,17 @@ export default function RecipeForm() {
       // Save the author to the Author collection if it doesn't exist
       if (author) {
         const authorsRef = collection(db, "Author");
+        const normalizedAuthor = author.trim().toLowerCase();
         const authorQuery = query(
           authorsRef,
-          where("name", "==", author.trim().toLowerCase())
+          where("name", "==", normalizedAuthor)
         );
         const authorSnapshot = await getDocs(authorQuery);
 
         if (authorSnapshot.empty) {
           await addDoc(authorsRef, {
-            name: author.trim().toLowerCase(),
+            name: normalizedAuthor,
+            displayName: capitalizeWords(author),
             userId: user.uid,
             createdAt: new Date().toISOString(),
           });
@@ -403,15 +397,18 @@ export default function RecipeForm() {
       // Save the category to the Category collection if it doesn't exist
       if (category) {
         const categoriesRef = collection(db, "Category");
+        const normalizedCategory = category.trim().toLowerCase();
         const categoryQuery = query(
           categoriesRef,
-          where("name", "==", category.trim().toLowerCase())
+          where("name", "==", normalizedCategory),
+          where("userId", "==", user.uid)
         );
         const categorySnapshot = await getDocs(categoryQuery);
 
         if (categorySnapshot.empty) {
           await addDoc(categoriesRef, {
-            name: category.trim().toLowerCase(),
+            name: normalizedCategory,
+            displayName: capitalizeWords(category),
             userId: user.uid,
             createdAt: new Date().toISOString(),
           });
@@ -427,21 +424,22 @@ export default function RecipeForm() {
 
       const recipeData = {
         userId: user.uid,
-        title: title.trim(),
-        cookbook: cookbook.trim(),
-        author: author.trim(),
-        cuisineType,
-        effort,
-        cookingMethod,
-        recipeType,
-        ingredientCategory,
-        category: category.trim(),
-        ingredients,
-        searchableIngredients: searchableIngredients.map((i) => i.trim()),
-        instructions,
+        title: title.trim().toLowerCase(),
+        cookbook: cookbook.trim().toLowerCase(),
+        author: author.trim().toLowerCase(),
+        category: category.trim().toLowerCase(),
+        cuisineType: cuisineType.toLowerCase(),
+        effort: effort.toLowerCase(),
+        cookingMethod: cookingMethod.toLowerCase(),
+        recipeType: recipeType.toLowerCase(),
+        ingredientCategory: ingredientCategory.toLowerCase(),
+        ingredients: ingredients.toLowerCase(),
+        searchableIngredients: searchableIngredients.map((i) =>
+          i.trim().toLowerCase()
+        ),
+        instructions: instructions.toLowerCase(),
         imageUrl,
-        tags: tags.map((t) => t.trim()),
-        dietaryTags,
+        tags: tags.map((t) => t.trim().toLowerCase()),
         createdAt: new Date().toISOString(),
         isFavorite: false,
       };
@@ -471,7 +469,15 @@ export default function RecipeForm() {
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.target.type !== "textarea") {
+              e.preventDefault();
+            }
+          }}
+        >
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <TextField
@@ -626,31 +632,6 @@ export default function RecipeForm() {
             </Grid>
 
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Dietary Requirements</InputLabel>
-                <Select
-                  multiple
-                  value={dietaryTags}
-                  label="Dietary Requirements"
-                  onChange={(e) => setDietaryTags(e.target.value)}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={value} />
-                      ))}
-                    </Box>
-                  )}
-                >
-                  {DIETARY_TAGS.map((tag) => (
-                    <MenuItem key={tag} value={tag}>
-                      {tag}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
               <Typography variant="subtitle1" gutterBottom>
                 Searchable Ingredients
               </Typography>
@@ -659,23 +640,12 @@ export default function RecipeForm() {
                 recipe by (optional)
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Autocomplete
-                  freeSolo
-                  options={[...COMMON_INGREDIENTS, ...existingIngredients]}
+                <TextField
+                  fullWidth
                   value={newIngredient}
-                  onChange={(event, newValue) => {
-                    if (newValue && !searchableIngredients.includes(newValue)) {
-                      setSearchableIngredients([
-                        ...searchableIngredients,
-                        newValue,
-                      ]);
-                      setNewIngredient("");
-                    }
-                  }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Add Searchable Ingredient" />
-                  )}
-                  sx={{ flex: 1 }}
+                  onChange={(e) => setNewIngredient(e.target.value)}
+                  label="Add Searchable Ingredient"
+                  placeholder="Type an ingredient and press Enter or click +"
                 />
                 <IconButton onClick={handleAddIngredient} color="primary">
                   <AddIcon />
@@ -734,7 +704,10 @@ export default function RecipeForm() {
                 type="file"
                 onChange={handleImageChange}
                 InputLabelProps={{ shrink: true }}
-                helperText="Optional: Add a photo of your recipe"
+                inputProps={{
+                  accept: "image/*",
+                }}
+                helperText="Optional: Add a photo of your recipe (JPG, PNG, GIF)"
               />
             </Grid>
 
