@@ -1,8 +1,16 @@
 import { useState, useEffect } from "react";
-import { collection, query, getDocs, orderBy } from "firebase/firestore";
+import {
+  collection,
+  query,
+  getDocs,
+  orderBy,
+  where,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useFavorites } from "../contexts/FavoritesContext";
 import { useAuth } from "../contexts/AuthContext";
+import { cacheUtils } from "../utils/cache";
 import {
   Container,
   Grid,
@@ -142,30 +150,72 @@ export default function RecipeList() {
     fetchCategories();
   }, []);
 
-  const fetchCategories = async () => {
-    try {
-      const categoriesRef = collection(db, "Category");
-      const querySnapshot = await getDocs(categoriesRef);
-      const categoriesData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setCategories(
-        categoriesData.sort((a, b) => a.name.localeCompare(b.name))
-      );
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
-
   const fetchRecipes = async () => {
     try {
+      // Try to get recipes from cache first
+      const cachedRecipes = cacheUtils.getCache("recipe_cache_all");
+      const lastUpdated = cacheUtils.getLastUpdated("recipe_cache_all");
+
+      if (cachedRecipes) {
+        setRecipes(cachedRecipes);
+        // Extract tags from cached recipes
+        const tagsSet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.tags && Array.isArray(recipe.tags)) {
+            recipe.tags.forEach((tag) => tagsSet.add(tag));
+          }
+        });
+        setExistingTags(Array.from(tagsSet).sort());
+
+        // Check for new recipes since last update
+        if (lastUpdated) {
+          const newRecipesQuery = query(
+            collection(db, "recipes"),
+            where("createdAt", ">", new Date(lastUpdated).toISOString()),
+            orderBy("createdAt", "desc")
+          );
+
+          const newRecipesSnapshot = await getDocs(newRecipesQuery);
+
+          if (!newRecipesSnapshot.empty) {
+            const newRecipes = newRecipesSnapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+
+            // Combine new recipes with cached recipes
+            const updatedRecipes = [...newRecipes, ...cachedRecipes];
+
+            // Update cache with combined data
+            cacheUtils.setCache("recipe_cache_all", updatedRecipes);
+
+            // Update state with combined data
+            setRecipes(updatedRecipes);
+
+            // Update tags with new recipes
+            newRecipes.forEach((recipe) => {
+              if (recipe.tags && Array.isArray(recipe.tags)) {
+                recipe.tags.forEach((tag) => tagsSet.add(tag));
+              }
+            });
+            setExistingTags(Array.from(tagsSet).sort());
+          }
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // If not in cache, fetch from Firestore
       const q = query(collection(db, "recipes"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
       const recipesData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
+      // Cache the recipes data
+      cacheUtils.setCache("recipe_cache_all", recipesData);
 
       // Extract all unique tags
       const tagsSet = new Set();
@@ -182,6 +232,36 @@ export default function RecipeList() {
       setError("Failed to fetch recipes. Please try again later.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      // Try to get categories from cache first
+      const cachedCategories = cacheUtils.getCache("recipe_cache_categories");
+      if (cachedCategories) {
+        setCategories(
+          cachedCategories.sort((a, b) => a.name.localeCompare(b.name))
+        );
+        return;
+      }
+
+      // If not in cache, fetch from Firestore
+      const categoriesRef = collection(db, "Category");
+      const querySnapshot = await getDocs(categoriesRef);
+      const categoriesData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Cache the categories data
+      cacheUtils.setCache("recipe_cache_categories", categoriesData);
+
+      setCategories(
+        categoriesData.sort((a, b) => a.name.localeCompare(b.name))
+      );
+    } catch (error) {
+      console.error("Error fetching categories:", error);
     }
   };
 

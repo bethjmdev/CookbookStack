@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, getDocs, where } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { cacheUtils } from "../utils/cache";
 import {
   Container,
   Grid,
@@ -26,6 +27,73 @@ export default function Cookbooks() {
 
   const fetchCookbooks = async () => {
     try {
+      // Try to get cookbooks from cache first
+      const cachedCookbooks = cacheUtils.getCache("recipe_cache_cookbooks");
+      const lastUpdated = cacheUtils.getLastUpdated("recipe_cache_cookbooks");
+
+      if (cachedCookbooks) {
+        setCookbooks(cachedCookbooks);
+
+        // Check for new recipes since last update
+        if (lastUpdated) {
+          const newRecipesQuery = query(
+            collection(db, "recipes"),
+            where("createdAt", ">", new Date(lastUpdated).toISOString())
+          );
+
+          const newRecipesSnapshot = await getDocs(newRecipesQuery);
+
+          if (!newRecipesSnapshot.empty) {
+            // Rebuild cookbooks with new recipes
+            const cookbookMap = new Map();
+
+            // Add existing cookbooks to map
+            cachedCookbooks.forEach((cookbook) => {
+              cookbookMap.set(cookbook.name, {
+                ...cookbook,
+                recipes: [...cookbook.recipes],
+              });
+            });
+
+            // Add new recipes to appropriate cookbooks
+            newRecipesSnapshot.docs.forEach((doc) => {
+              const recipe = doc.data();
+              const cookbookName = recipe.cookbook || "Uncategorized";
+
+              if (!cookbookMap.has(cookbookName)) {
+                cookbookMap.set(cookbookName, {
+                  name: cookbookName,
+                  recipeCount: 0,
+                  recipes: [],
+                });
+              }
+
+              const cookbook = cookbookMap.get(cookbookName);
+              cookbook.recipeCount++;
+              cookbook.recipes.push({
+                id: doc.id,
+                ...recipe,
+              });
+            });
+
+            // Convert map to array and sort by name
+            const updatedCookbooks = Array.from(cookbookMap.values()).sort(
+              (a, b) => a.name.localeCompare(b.name)
+            );
+
+            // Update cache with combined data
+            cacheUtils.setCache("recipe_cache_cookbooks", updatedCookbooks);
+
+            // Update state with combined data
+            setCookbooks(updatedCookbooks);
+          }
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // If not in cache, fetch from Firestore
       const q = query(collection(db, "recipes"));
       const querySnapshot = await getDocs(q);
 
@@ -56,6 +124,9 @@ export default function Cookbooks() {
       const cookbooksArray = Array.from(cookbookMap.values()).sort((a, b) =>
         a.name.localeCompare(b.name)
       );
+
+      // Cache the cookbooks data
+      cacheUtils.setCache("recipe_cache_cookbooks", cookbooksArray);
 
       setCookbooks(cookbooksArray);
       setError("");

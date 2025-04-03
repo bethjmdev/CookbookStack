@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useFavorites } from "../contexts/FavoritesContext";
 import { useAuth } from "../contexts/AuthContext";
+import { cacheUtils } from "../utils/cache";
 import {
   Container,
   Paper,
@@ -47,11 +55,45 @@ export default function RecipeView() {
 
   const fetchRecipe = async () => {
     try {
+      // Try to get recipe from cache first
+      const cachedRecipe = cacheUtils.getCache(`recipe_cache_${id}`);
+      const lastUpdated = cacheUtils.getLastUpdated(`recipe_cache_${id}`);
+
+      if (cachedRecipe) {
+        setRecipe(cachedRecipe);
+
+        // Check if recipe has been updated since last cache
+        if (lastUpdated) {
+          const recipeRef = doc(db, "recipes", id);
+          const recipeSnap = await getDoc(recipeRef);
+
+          if (recipeSnap.exists()) {
+            const recipeData = { id: recipeSnap.id, ...recipeSnap.data() };
+            const recipeUpdatedAt = new Date(
+              recipeData.lastModified || recipeData.createdAt
+            ).getTime();
+
+            // If recipe has been updated since last cache, update the cache and state
+            if (recipeUpdatedAt > lastUpdated) {
+              cacheUtils.setCache(`recipe_cache_${id}`, recipeData);
+              setRecipe(recipeData);
+            }
+          }
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // If not in cache, fetch from Firestore
       const docRef = doc(db, "recipes", id);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setRecipe({ id: docSnap.id, ...docSnap.data() });
+        const recipeData = { id: docSnap.id, ...docSnap.data() };
+        // Cache the recipe data
+        cacheUtils.setCache(`recipe_cache_${id}`, recipeData);
+        setRecipe(recipeData);
       } else {
         setError("Recipe not found");
       }
