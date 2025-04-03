@@ -84,6 +84,8 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/recipes" element={<RecipeList />} />
+                <Route path="/recipe/:id" element={<RecipeView />} />
                 <Route
                   path="/"
                   element={
@@ -93,26 +95,10 @@ function App() {
                   }
                 />
                 <Route
-                  path="/recipes"
-                  element={
-                    <PrivateRoute>
-                      <RecipeList />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
                   path="/recipe/new"
                   element={
                     <PrivateRoute>
                       <RecipeForm />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/recipe/:id"
-                  element={
-                    <PrivateRoute>
-                      <RecipeView />
                     </PrivateRoute>
                   }
                 />

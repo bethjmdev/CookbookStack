@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, query, getDocs, orderBy } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Container,
   Grid,
@@ -21,23 +22,29 @@ import {
   CardActions,
   Chip,
   IconButton,
+  Snackbar,
 } from "@mui/material";
-import { Add as AddIcon, Favorite, FavoriteBorder } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  Favorite,
+  FavoriteBorder,
+  Share as ShareIcon,
+} from "@mui/icons-material";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import RecipeCard from "../components/RecipeCard";
 
 // Predefined options for cuisine types
 const CUISINE_TYPES = [
   "American",
+  "Mexican",
   "Korean",
   "Chinese",
+  "Lebanese",
   "Japanese",
   "Vietnamese",
-  "Lebanese",
   "Mediterranean",
   "Jewish",
   "Italian",
-  "Mexican",
   "Indian",
   "Polish",
   "Irish",
@@ -105,6 +112,7 @@ export default function RecipeList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+  const { currentUser } = useAuth();
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -127,6 +135,7 @@ export default function RecipeList() {
     useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [categories, setCategories] = useState([]);
+  const [showShareNotification, setShowShareNotification] = useState(false);
 
   useEffect(() => {
     fetchRecipes();
@@ -227,21 +236,35 @@ export default function RecipeList() {
   ];
   const uniqueAuthors = [...new Set(recipes.map((recipe) => recipe.author))];
 
+  const handleShare = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      setShowShareNotification(true);
+    });
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Recipe Book
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => navigate("/recipe/new")}
-          sx={{ mb: 2 }}
-        >
-          Add New Recipe
-        </Button>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+            Recipe Book
+          </Typography>
+          <IconButton onClick={handleShare} title="Share Recipe List">
+            <ShareIcon />
+          </IconButton>
+        </Box>
+        {currentUser && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/recipe/new")}
+            sx={{ mb: 2 }}
+          >
+            Add New Recipe
+          </Button>
+        )}
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -407,6 +430,13 @@ export default function RecipeList() {
           </Typography>
         </Box>
       )}
+
+      <Snackbar
+        open={showShareNotification}
+        autoHideDuration={3000}
+        onClose={() => setShowShareNotification(false)}
+        message="Recipe list link copied to clipboard!"
+      />
     </Container>
   );
 }

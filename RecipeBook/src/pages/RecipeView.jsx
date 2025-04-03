@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Container,
   Paper,
@@ -19,22 +20,26 @@ import {
   IconButton,
   Dialog,
   DialogContent,
+  Snackbar,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
   Favorite,
   FavoriteBorder,
   Edit as EditIcon,
+  Share as ShareIcon,
 } from "@mui/icons-material";
 
 export default function RecipeView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+  const { currentUser } = useAuth();
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [openImageDialog, setOpenImageDialog] = useState(false);
+  const [showShareNotification, setShowShareNotification] = useState(false);
 
   useEffect(() => {
     fetchRecipe();
@@ -55,6 +60,13 @@ export default function RecipeView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShare = () => {
+    const recipeUrl = window.location.href;
+    navigator.clipboard.writeText(recipeUrl).then(() => {
+      setShowShareNotification(true);
+    });
   };
 
   if (loading) {
@@ -83,28 +95,35 @@ export default function RecipeView() {
           {recipe.title}
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton
-          onClick={() => {
-            if (isFavorite(recipe.id)) {
-              removeFromFavorites(recipe.id);
-            } else {
-              addToFavorites(recipe);
-            }
-          }}
-        >
-          {isFavorite(recipe.id) ? (
-            <Favorite color="error" />
-          ) : (
-            <FavoriteBorder />
-          )}
+        <IconButton onClick={handleShare} title="Share Recipe">
+          <ShareIcon />
         </IconButton>
-        <Button
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={() => navigate(`/recipe/edit/${recipe.id}`)}
-        >
-          Edit Recipe
-        </Button>
+        {currentUser && (
+          <>
+            <IconButton
+              onClick={() => {
+                if (isFavorite(recipe.id)) {
+                  removeFromFavorites(recipe.id);
+                } else {
+                  addToFavorites(recipe);
+                }
+              }}
+            >
+              {isFavorite(recipe.id) ? (
+                <Favorite color="error" />
+              ) : (
+                <FavoriteBorder />
+              )}
+            </IconButton>
+            <Button
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/recipe/edit/${recipe.id}`)}
+            >
+              Edit Recipe
+            </Button>
+          </>
+        )}
       </Box>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -273,6 +292,13 @@ export default function RecipeView() {
           </Paper>
         )}
       </Box>
+
+      <Snackbar
+        open={showShareNotification}
+        autoHideDuration={3000}
+        onClose={() => setShowShareNotification(false)}
+        message="Recipe link copied to clipboard!"
+      />
     </Container>
   );
 }

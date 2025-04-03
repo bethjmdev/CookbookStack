@@ -27,43 +27,19 @@ import { useAuth } from "../contexts/AuthContext";
 const CUISINE_TYPES = [
   "American",
   "Korean",
+  "Mexican",
   "Chinese",
+  "Lebanese",
   "Japanese",
   "Vietnamese",
-  "Lebanese",
   "Mediterranean",
   "Jewish",
   "Italian",
-  "Mexican",
   "Indian",
   "Polish",
   "Irish",
   "Other",
   "European",
-];
-
-const COMMON_INGREDIENTS = [
-  "Chicken",
-  "Beef",
-  "Fish",
-  "Eggplant",
-  "Potato",
-  "Carrot",
-  "Tomato",
-  "Cabbage",
-  "Mushroom",
-  "Pasta",
-];
-
-const DIETARY_TAGS = [
-  "None",
-  "Vegetarian",
-  "Vegan",
-  "Gluten-Free",
-  "Dairy-Free",
-  "Nut-Free",
-  "Low-Carb",
-  "High-Protein",
 ];
 
 const COOKING_METHODS = [
@@ -74,6 +50,7 @@ const COOKING_METHODS = [
   "Crock Pot",
   "Instant Pot",
   "Simmer on Stove",
+  "Blender",
   "Other",
 ];
 
@@ -84,7 +61,8 @@ const EFFORT_LEVELS = [
   "Active Cooking (1-2 hours)",
   "Project Cooking (2+ hours)",
   "Complex Recipe (Multiple Steps)",
-  "Special Occasion (All Day Event)",
+  "All Day Event",
+  "Multiple Days",
 ];
 
 const RECIPE_TYPES = [
@@ -96,12 +74,15 @@ const RECIPE_TYPES = [
   "Appetizer",
   "Side Dish",
   "Brunch",
+  "Drink",
 ];
 
 const INGREDIENT_CATEGORIES = [
   "Veggie",
+  "Protien",
   "Meat",
   "Soup",
+  "Dip",
   "Beverage",
   "Grain",
   "Sauce",
@@ -110,6 +91,10 @@ const INGREDIENT_CATEGORIES = [
   "Oil",
   "Dessert sweet",
   "Dessert savory",
+  "Fun drink",
+  "Coffee drink",
+  "Cocktail",
+  "Other",
 ];
 
 export default function RecipeForm() {
