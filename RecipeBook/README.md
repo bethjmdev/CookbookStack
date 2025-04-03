@@ -1,12 +1,5 @@
-# React + Vite
+This is a project I made while learning how to use cursor AI. This is not a reflection of my skills. I was curious about how the Ai would build the app depending on the instructions I gave it.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+I gave it free reign to build the app and I just guided it along.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+I think it did a pretty good job, but I would not use it to build a production app.
