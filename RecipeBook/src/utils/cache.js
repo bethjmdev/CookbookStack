@@ -1,5 +1,5 @@
 // Cache utility functions
-const CACHE_EXPIRY = 1000 * 60 * 60 * 24; // 24 hours in milliseconds
+const CACHE_EXPIRY = 1000 * 60 * 60; // 1 hour in milliseconds
 
 export const cacheUtils = {
   // Save data to cache with timestamp

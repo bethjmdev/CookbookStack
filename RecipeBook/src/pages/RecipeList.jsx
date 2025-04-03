@@ -6,6 +6,8 @@ import {
   orderBy,
   where,
   Timestamp,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useFavorites } from "../contexts/FavoritesContext";
@@ -144,6 +146,63 @@ export default function RecipeList() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [categories, setCategories] = useState([]);
   const [showShareNotification, setShowShareNotification] = useState(false);
+  const [imageRefreshMap, setImageRefreshMap] = useState({});
+
+  // Define the order for effort levels
+  const effortLevelOrder = [
+    "Quick & Easy (Under 30 mins)",
+    "Minimal Effort, Long Time (Set & Forget)",
+    "Moderate Effort (30-60 mins)",
+    "Active Cooking (1-2 hours)",
+    "Project Cooking (2+ hours)",
+    "Complex Recipe (Multiple Steps)",
+    "Special Occasion (All Day Event)",
+  ];
+
+  // Function to normalize effort level by finding the closest match in the predefined order
+  const normalizeEffortLevel = (effort) => {
+    if (!effort) return "";
+
+    // Check for exact match (case-insensitive)
+    const exactMatch = effortLevelOrder.find(
+      (orderedEffort) => orderedEffort.toLowerCase() === effort.toLowerCase()
+    );
+
+    if (exactMatch) {
+      return exactMatch; // Return the properly cased version from the predefined order
+    }
+
+    // If no exact match, return the original effort level
+    return effort;
+  };
+
+  // Function to sort effort levels according to the predefined order
+  const sortEffortLevels = (efforts) => {
+    return [...efforts].sort((a, b) => {
+      // Find the closest match in the effortLevelOrder array (case-insensitive)
+      const findClosestMatch = (effort) => {
+        const lowerEffort = effort.toLowerCase();
+        return effortLevelOrder.findIndex(
+          (orderedEffort) => orderedEffort.toLowerCase() === lowerEffort
+        );
+      };
+
+      const indexA = findClosestMatch(a);
+      const indexB = findClosestMatch(b);
+
+      // If both items are in the order array, sort by their position
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+
+      // If only one item is in the order array, prioritize it
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+
+      // If neither item is in the order array, sort alphabetically
+      return a.localeCompare(b);
+    });
+  };
 
   useEffect(() => {
     fetchRecipes();
@@ -170,10 +229,29 @@ export default function RecipeList() {
       const lastUpdated = cacheUtils.getLastUpdated("recipe_cache_all");
 
       if (cachedRecipes) {
-        setRecipes(cachedRecipes);
+        // Process cached recipes to ensure image URLs are properly preserved
+        const processedCachedRecipes = cachedRecipes.map((recipe) => {
+          // If the recipe has an imageUrl, make sure it's properly preserved
+          if (recipe.imageUrl) {
+            // Check if it's a Firebase Storage URL
+            if (recipe.imageUrl.includes("firebasestorage.googleapis.com")) {
+              // Always mark Firebase Storage URLs for refresh to ensure we have valid tokens
+              return {
+                ...recipe,
+                imageUrlNeedsRefresh: true,
+              };
+            }
+            // For non-Firebase URLs, keep as is
+            return recipe;
+          }
+          return recipe;
+        });
+
+        setRecipes(processedCachedRecipes);
+
         // Extract tags from cached recipes
         const tagsSet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.tags && Array.isArray(recipe.tags)) {
             recipe.tags.forEach((tag) => tagsSet.add(tag));
           }
@@ -182,17 +260,20 @@ export default function RecipeList() {
 
         // Extract unique effort levels for debugging
         const effortSet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.effort) {
-            effortSet.add(recipe.effort);
+            // Normalize effort level by finding the closest match in the predefined order
+            const normalizedEffort = normalizeEffortLevel(recipe.effort);
+            effortSet.add(normalizedEffort);
           }
         });
         console.log("Unique effort levels in recipes:", Array.from(effortSet));
-        setExistingEfforts(Array.from(effortSet).sort());
+        // Sort effort levels according to the predefined order
+        setExistingEfforts(sortEffortLevels(Array.from(effortSet)));
 
         // Extract unique recipe types
         const recipeTypeSet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.recipeType) {
             recipeTypeSet.add(recipe.recipeType);
           }
@@ -205,7 +286,7 @@ export default function RecipeList() {
 
         // Extract unique cooking methods
         const cookingMethodSet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.cookingMethod) {
             cookingMethodSet.add(recipe.cookingMethod);
           }
@@ -218,7 +299,7 @@ export default function RecipeList() {
 
         // Extract unique cuisine types
         const cuisineTypeSet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.cuisineType) {
             cuisineTypeSet.add(recipe.cuisineType);
           }
@@ -231,7 +312,7 @@ export default function RecipeList() {
 
         // Extract unique ingredient categories
         const ingredientCategorySet = new Set();
-        cachedRecipes.forEach((recipe) => {
+        processedCachedRecipes.forEach((recipe) => {
           if (recipe.ingredientCategory) {
             ingredientCategorySet.add(recipe.ingredientCategory);
           }
@@ -261,7 +342,7 @@ export default function RecipeList() {
             }));
 
             // Combine new recipes with cached recipes
-            const updatedRecipes = [...newRecipes, ...cachedRecipes];
+            const updatedRecipes = [...newRecipes, ...processedCachedRecipes];
 
             // Update cache with combined data
             cacheUtils.setCache("recipe_cache_all", updatedRecipes);
@@ -307,11 +388,14 @@ export default function RecipeList() {
       const effortSet = new Set();
       recipesData.forEach((recipe) => {
         if (recipe.effort) {
-          effortSet.add(recipe.effort);
+          // Normalize effort level by finding the closest match in the predefined order
+          const normalizedEffort = normalizeEffortLevel(recipe.effort);
+          effortSet.add(normalizedEffort);
         }
       });
       console.log("Unique effort levels in recipes:", Array.from(effortSet));
-      setExistingEfforts(Array.from(effortSet).sort());
+      // Sort effort levels according to the predefined order
+      setExistingEfforts(sortEffortLevels(Array.from(effortSet)));
 
       // Extract unique recipe types
       const recipeTypeSet = new Set();
@@ -459,6 +543,77 @@ export default function RecipeList() {
     });
   };
 
+  // Function to refresh a single recipe's image URL
+  const refreshRecipeImage = async (recipeId) => {
+    try {
+      console.log(`Refreshing image for recipe ${recipeId}`);
+
+      // Get the latest recipe data from Firestore
+      const recipeDoc = await getDoc(doc(db, "recipes", recipeId));
+      if (recipeDoc.exists()) {
+        const recipeData = recipeDoc.data();
+
+        // Check if the recipe has an image URL
+        if (!recipeData.imageUrl) {
+          console.log(`Recipe ${recipeId} has no image URL in Firestore`);
+          return;
+        }
+
+        console.log(
+          `New image URL for recipe ${recipeId}: ${recipeData.imageUrl}`
+        );
+
+        // Update the image URL in the recipes state
+        setRecipes((prevRecipes) =>
+          prevRecipes.map((recipe) =>
+            recipe.id === recipeId
+              ? {
+                  ...recipe,
+                  imageUrl: recipeData.imageUrl,
+                  imageUrlNeedsRefresh: false,
+                }
+              : recipe
+          )
+        );
+
+        // Update the image refresh map
+        setImageRefreshMap((prev) => ({
+          ...prev,
+          [recipeId]: recipeData.imageUrl,
+        }));
+
+        // Update the cache with the new image URL
+        const cachedRecipes = cacheUtils.getCache("recipe_cache_all");
+        if (cachedRecipes) {
+          const updatedCachedRecipes = cachedRecipes.map((recipe) =>
+            recipe.id === recipeId
+              ? {
+                  ...recipe,
+                  imageUrl: recipeData.imageUrl,
+                  imageUrlNeedsRefresh: false,
+                }
+              : recipe
+          );
+          cacheUtils.setCache("recipe_cache_all", updatedCachedRecipes);
+        }
+      } else {
+        console.log(`Recipe ${recipeId} not found in Firestore`);
+      }
+    } catch (error) {
+      console.error("Error refreshing recipe image:", error);
+    }
+  };
+
+  // Function to handle image error
+  const handleImageError = (recipeId) => {
+    console.log(`Image error for recipe ${recipeId}`);
+
+    // Always try to refresh the image, even if we've tried before
+    // This is more aggressive but should help with expired tokens
+    console.log(`Attempting to refresh image for recipe ${recipeId}`);
+    refreshRecipeImage(recipeId);
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
@@ -469,6 +624,20 @@ export default function RecipeList() {
           <IconButton onClick={handleShare} title="Share Recipe List">
             <ShareIcon />
           </IconButton>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<RefreshIcon />}
+            onClick={() => {
+              // Clear the recipe cache
+              cacheUtils.clearCache("recipe_cache_all");
+              // Fetch fresh data
+              fetchRecipes();
+            }}
+            title="Refresh all recipes and clear cache"
+          >
+            Refresh Data
+          </Button>
         </Box>
         {currentUser && (
           <Button
@@ -533,17 +702,19 @@ export default function RecipeList() {
               onChange={(e) => setSelectedEffort(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {existingEfforts.length > 0
-                ? existingEfforts.map((effort) => (
-                    <MenuItem key={effort} value={effort}>
-                      {effort}
-                    </MenuItem>
-                  ))
-                : EFFORT_LEVELS.map((effort) => (
-                    <MenuItem key={effort} value={effort}>
-                      {effort}
-                    </MenuItem>
-                  ))}
+              {/* Create a Set of all effort levels to prevent duplicates */}
+              {Array.from(
+                new Set([
+                  ...effortLevelOrder,
+                  ...existingEfforts.filter(
+                    (effort) => !effortLevelOrder.includes(effort)
+                  ),
+                ])
+              ).map((effort) => (
+                <MenuItem key={effort} value={effort}>
+                  {effort}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -678,7 +849,10 @@ export default function RecipeList() {
       <Grid container spacing={3}>
         {filteredRecipes.map((recipe) => (
           <Grid item key={recipe.id} xs={12} sm={6} md={4}>
-            <RecipeCard recipe={recipe} />
+            <RecipeCard
+              recipe={recipe}
+              onImageError={() => handleImageError(recipe.id)}
+            />
           </Grid>
         ))}
       </Grid>
