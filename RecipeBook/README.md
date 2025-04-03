@@ -2,6 +2,6 @@ This is a project I made while learning how to use cursor AI. This is not a refl
 
 I think it did a pretty good job, but I would not use it to build a production app.
 
-I noticed the datastructuring is not ideal. 
+I noticed the datastructuring is not ideal. also the data calls are not ideal.
 
-The app works and I am actively using it to store my recipes. 
+The app works and I am actively using it to store my recipes.

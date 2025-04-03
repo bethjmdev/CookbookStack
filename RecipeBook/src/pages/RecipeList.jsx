@@ -37,6 +37,7 @@ import {
   Favorite,
   FavoriteBorder,
   Share as ShareIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import RecipeCard from "../components/RecipeCard";
@@ -93,8 +94,10 @@ const RECIPE_TYPES = [
 
 const INGREDIENT_CATEGORIES = [
   "Veggie",
+  "Protien",
   "Meat",
   "Soup",
+  "Dip",
   "Beverage",
   "Grain",
   "Sauce",
@@ -103,17 +106,10 @@ const INGREDIENT_CATEGORIES = [
   "Oil",
   "Dessert sweet",
   "Dessert savory",
-];
-
-const DIETARY_TAGS = [
-  "None",
-  "Vegetarian",
-  "Vegan",
-  "Gluten-Free",
-  "Dairy-Free",
-  "Nut-Free",
-  "Low-Carb",
-  "High-Protein",
+  "Fun drink",
+  "Coffee drink",
+  "Cocktail",
+  "Other",
 ];
 
 export default function RecipeList() {
@@ -135,6 +131,10 @@ export default function RecipeList() {
   const [existingCuisines, setExistingCuisines] = useState([]);
   const [existingEfforts, setExistingEfforts] = useState([]);
   const [existingAllergens, setExistingAllergens] = useState([]);
+  const [existingRecipeTypes, setExistingRecipeTypes] = useState([]);
+  const [existingCookingMethods, setExistingCookingMethods] = useState([]);
+  const [existingIngredientCategories, setExistingIngredientCategories] =
+    useState([]);
   const [searchByIngredient, setSearchByIngredient] = useState("");
   const cookbookName = searchParams.get("cookbook");
   const [selectedCookingMethod, setSelectedCookingMethod] = useState("");
@@ -149,6 +149,19 @@ export default function RecipeList() {
     fetchRecipes();
     fetchCategories();
   }, []);
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSearchByIngredient("");
+    setSelectedCuisine("");
+    setSelectedEffort("");
+    setSelectedAllergen("");
+    setSelectedCollection("");
+    setSelectedCookingMethod("");
+    setSelectedRecipeType("");
+    setSelectedIngredientCategory("");
+    setSelectedCategory("");
+  };
 
   const fetchRecipes = async () => {
     try {
@@ -166,6 +179,70 @@ export default function RecipeList() {
           }
         });
         setExistingTags(Array.from(tagsSet).sort());
+
+        // Extract unique effort levels for debugging
+        const effortSet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.effort) {
+            effortSet.add(recipe.effort);
+          }
+        });
+        console.log("Unique effort levels in recipes:", Array.from(effortSet));
+        setExistingEfforts(Array.from(effortSet).sort());
+
+        // Extract unique recipe types
+        const recipeTypeSet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.recipeType) {
+            recipeTypeSet.add(recipe.recipeType);
+          }
+        });
+        console.log(
+          "Unique recipe types in recipes:",
+          Array.from(recipeTypeSet)
+        );
+        setExistingRecipeTypes(Array.from(recipeTypeSet).sort());
+
+        // Extract unique cooking methods
+        const cookingMethodSet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.cookingMethod) {
+            cookingMethodSet.add(recipe.cookingMethod);
+          }
+        });
+        console.log(
+          "Unique cooking methods in recipes:",
+          Array.from(cookingMethodSet)
+        );
+        setExistingCookingMethods(Array.from(cookingMethodSet).sort());
+
+        // Extract unique cuisine types
+        const cuisineTypeSet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.cuisineType) {
+            cuisineTypeSet.add(recipe.cuisineType);
+          }
+        });
+        console.log(
+          "Unique cuisine types in recipes:",
+          Array.from(cuisineTypeSet)
+        );
+        setExistingCuisines(Array.from(cuisineTypeSet).sort());
+
+        // Extract unique ingredient categories
+        const ingredientCategorySet = new Set();
+        cachedRecipes.forEach((recipe) => {
+          if (recipe.ingredientCategory) {
+            ingredientCategorySet.add(recipe.ingredientCategory);
+          }
+        });
+        console.log(
+          "Unique ingredient categories in recipes:",
+          Array.from(ingredientCategorySet)
+        );
+        setExistingIngredientCategories(
+          Array.from(ingredientCategorySet).sort()
+        );
 
         // Check for new recipes since last update
         if (lastUpdated) {
@@ -225,6 +302,65 @@ export default function RecipeList() {
         }
       });
       setExistingTags(Array.from(tagsSet).sort());
+
+      // Extract unique effort levels for debugging
+      const effortSet = new Set();
+      recipesData.forEach((recipe) => {
+        if (recipe.effort) {
+          effortSet.add(recipe.effort);
+        }
+      });
+      console.log("Unique effort levels in recipes:", Array.from(effortSet));
+      setExistingEfforts(Array.from(effortSet).sort());
+
+      // Extract unique recipe types
+      const recipeTypeSet = new Set();
+      recipesData.forEach((recipe) => {
+        if (recipe.recipeType) {
+          recipeTypeSet.add(recipe.recipeType);
+        }
+      });
+      console.log("Unique recipe types in recipes:", Array.from(recipeTypeSet));
+      setExistingRecipeTypes(Array.from(recipeTypeSet).sort());
+
+      // Extract unique cooking methods
+      const cookingMethodSet = new Set();
+      recipesData.forEach((recipe) => {
+        if (recipe.cookingMethod) {
+          cookingMethodSet.add(recipe.cookingMethod);
+        }
+      });
+      console.log(
+        "Unique cooking methods in recipes:",
+        Array.from(cookingMethodSet)
+      );
+      setExistingCookingMethods(Array.from(cookingMethodSet).sort());
+
+      // Extract unique cuisine types
+      const cuisineTypeSet = new Set();
+      recipesData.forEach((recipe) => {
+        if (recipe.cuisineType) {
+          cuisineTypeSet.add(recipe.cuisineType);
+        }
+      });
+      console.log(
+        "Unique cuisine types in recipes:",
+        Array.from(cuisineTypeSet)
+      );
+      setExistingCuisines(Array.from(cuisineTypeSet).sort());
+
+      // Extract unique ingredient categories
+      const ingredientCategorySet = new Set();
+      recipesData.forEach((recipe) => {
+        if (recipe.ingredientCategory) {
+          ingredientCategorySet.add(recipe.ingredientCategory);
+        }
+      });
+      console.log(
+        "Unique ingredient categories in recipes:",
+        Array.from(ingredientCategorySet)
+      );
+      setExistingIngredientCategories(Array.from(ingredientCategorySet).sort());
 
       setRecipes(recipesData);
       setError("");
@@ -374,11 +510,17 @@ export default function RecipeList() {
               onChange={(e) => setSelectedCuisine(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {CUISINE_TYPES.map((cuisine) => (
-                <MenuItem key={cuisine} value={cuisine}>
-                  {cuisine}
-                </MenuItem>
-              ))}
+              {existingCuisines.length > 0
+                ? existingCuisines.map((cuisine) => (
+                    <MenuItem key={cuisine} value={cuisine}>
+                      {cuisine}
+                    </MenuItem>
+                  ))
+                : CUISINE_TYPES.map((cuisine) => (
+                    <MenuItem key={cuisine} value={cuisine}>
+                      {cuisine}
+                    </MenuItem>
+                  ))}
             </Select>
           </FormControl>
         </Grid>
@@ -391,11 +533,17 @@ export default function RecipeList() {
               onChange={(e) => setSelectedEffort(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {EFFORT_LEVELS.map((effort) => (
-                <MenuItem key={effort} value={effort}>
-                  {effort}
-                </MenuItem>
-              ))}
+              {existingEfforts.length > 0
+                ? existingEfforts.map((effort) => (
+                    <MenuItem key={effort} value={effort}>
+                      {effort}
+                    </MenuItem>
+                  ))
+                : EFFORT_LEVELS.map((effort) => (
+                    <MenuItem key={effort} value={effort}>
+                      {effort}
+                    </MenuItem>
+                  ))}
             </Select>
           </FormControl>
         </Grid>
@@ -408,11 +556,17 @@ export default function RecipeList() {
               onChange={(e) => setSelectedCookingMethod(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {COOKING_METHODS.map((method) => (
-                <MenuItem key={method} value={method}>
-                  {method}
-                </MenuItem>
-              ))}
+              {existingCookingMethods.length > 0
+                ? existingCookingMethods.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))
+                : COOKING_METHODS.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
             </Select>
           </FormControl>
         </Grid>
@@ -425,11 +579,17 @@ export default function RecipeList() {
               onChange={(e) => setSelectedRecipeType(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {RECIPE_TYPES.map((type) => (
-                <MenuItem key={type} value={type}>
-                  {type}
-                </MenuItem>
-              ))}
+              {existingRecipeTypes.length > 0
+                ? existingRecipeTypes.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))
+                : RECIPE_TYPES.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
             </Select>
           </FormControl>
         </Grid>
@@ -442,11 +602,17 @@ export default function RecipeList() {
               onChange={(e) => setSelectedIngredientCategory(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {INGREDIENT_CATEGORIES.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
+              {existingIngredientCategories.length > 0
+                ? existingIngredientCategories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))
+                : INGREDIENT_CATEGORIES.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
             </Select>
           </FormControl>
         </Grid>
@@ -492,6 +658,20 @@ export default function RecipeList() {
               ))}
             </Select>
           </FormControl>
+        </Grid>
+        <Grid
+          item
+          xs={12}
+          sx={{ display: "flex", justifyContent: "center", mt: 2 }}
+        >
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={resetFilters}
+            startIcon={<RefreshIcon />}
+          >
+            Reset All Filters
+          </Button>
         </Grid>
       </Grid>
 
